@@ -6,7 +6,7 @@ import struct
 import os
 import random
 
-OUT = r'C:\New folder\Hangrong\merge-game\assets\audio'
+OUT = r'os.path.dirname(os.path.abspath(__file__))\assets\audio'
 RATE = 22050
 
 random.seed(7)

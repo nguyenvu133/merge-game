@@ -6,7 +6,7 @@
 #   Demo Pixi+Phaser: http://localhost:8090/demo-libs/demo-libs.html
 # ============================================================
 $ErrorActionPreference = 'Stop'
-$proj = 'C:\New folder\Hangrong\merge-game'
+$proj = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $proj
 
 # 1. sync a clean copy to C:\velo\mergeweb and build webgl (web only — no desktop build)

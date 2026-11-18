@@ -21,6 +21,7 @@
             constraints: [],
             shifts: [],
             tint: null,
+            _tintBlend: null,
             onEvent: null,
             _lastFrame: -1,
             // ---------- controls ----------
@@ -132,13 +133,22 @@
                 if (!m || Math.abs(sh.dy) < 0.01) continue;
                 for (let i = 1; i < m.positions.length; i += 2) m.positions[i] += sh.dy;
               }
-              // boss tint: multiply every mesh color
+              // boss tint: blend 40% tint into the ORIGINAL colors (a plain
+              // multiply washed the boss out - the .kine art must stay visible)
               if (rig.tint) {
                 for (const m of ms) {
                   if (!m.color) continue;
                   m.color.r = Math.min(255, Math.round(m.color.r * rig.tint.r));
                   m.color.g = Math.min(255, Math.round(m.color.g * rig.tint.g));
                   m.color.b = Math.min(255, Math.round(m.color.b * rig.tint.b));
+                }
+              } else if (rig._tintBlend) {
+                for (const m of ms) {
+                  if (!m.color) continue;
+                  const k = 0.4;
+                  m.color.r = Math.round(m.color.r * (1 - k) + 255 * rig._tintBlend.r * k);
+                  m.color.g = Math.round(m.color.g * (1 - k) + 255 * rig._tintBlend.g * k);
+                  m.color.b = Math.round(m.color.b * (1 - k) + 255 * rig._tintBlend.b * k);
                 }
               }
               // constraints: clamp bone rotations (post-process bone list)

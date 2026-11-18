@@ -119,6 +119,96 @@
    "tex": "monsters/dust",
    "proj": "fx/proj_wind.png",
    "skill": "dust_gust"
+  },
+  "plasma": {
+   "hp": 85,
+   "dmg": 17,
+   "spd": 0.95,
+   "ranged": true,
+   "range": 255,
+   "tex": "monsters/plasma",
+   "proj": "fx/proj_fire.png",
+   "skill": "plasma_shot"
+  },
+  "frostfire": {
+   "hp": 100,
+   "dmg": 15,
+   "spd": 1.05,
+   "ranged": true,
+   "range": 245,
+   "tex": "monsters/frostfire",
+   "proj": "fx/proj_fire.png",
+   "skill": "frostfire_blast"
+  },
+  "thunder": {
+   "hp": 95,
+   "dmg": 16,
+   "spd": 1.0,
+   "ranged": true,
+   "range": 260,
+   "tex": "monsters/thunder",
+   "proj": "fx/proj_magic.png",
+   "skill": "thunder_bolt"
+  },
+  "glacier": {
+   "hp": 120,
+   "dmg": 14,
+   "spd": 1.3,
+   "ranged": true,
+   "range": 235,
+   "tex": "monsters/glacier",
+   "proj": "fx/proj_water.png",
+   "skill": "glacier_beam"
+  },
+  "crystal": {
+   "hp": 115,
+   "dmg": 16,
+   "spd": 1.1,
+   "ranged": true,
+   "range": 250,
+   "tex": "monsters/crystal",
+   "proj": "fx/proj_magic.png",
+   "skill": "crystal_shard"
+  },
+  "permafrost": {
+   "hp": 135,
+   "dmg": 14,
+   "spd": 1.5,
+   "ranged": false,
+   "range": 0,
+   "tex": "monsters/permafrost",
+   "proj": "fx/proj_earth.png",
+   "skill": "permafrost_slam"
+  },
+  "storm": {
+   "hp": 85,
+   "dmg": 17,
+   "spd": 0.85,
+   "ranged": true,
+   "range": 280,
+   "tex": "monsters/storm",
+   "proj": "fx/proj_wind.png",
+   "skill": "storm_blast"
+  },
+  "blizzard": {
+   "hp": 95,
+   "dmg": 15,
+   "spd": 0.9,
+   "ranged": true,
+   "range": 265,
+   "tex": "monsters/blizzard",
+   "proj": "fx/proj_wind.png",
+   "skill": "blizzard_wind"
+  },
+  "hail": {
+   "hp": 105,
+   "dmg": 16,
+   "spd": 0.95,
+   "ranged": true,
+   "range": 255,
+   "tex": "monsters/hail",
+   "proj": "fx/proj_magic.png",
+   "skill": "hail_storm"
   }
  },
  "enemies": {

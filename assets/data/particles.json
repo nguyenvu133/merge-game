@@ -111,6 +111,13 @@
    "speed": 225,
    "lifetime": 0.7,
    "texture": "fx/proj_fire.png"
+  },
+  "elite": {
+   "count": 34,
+   "size": 18,
+   "speed": 200,
+   "lifetime": 0.8,
+   "texture": "fx/proj_wind.png"
   }
  }
 }

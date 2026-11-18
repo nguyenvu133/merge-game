@@ -5,10 +5,16 @@
 # (velo-runtime) is already inside that bundle.
 # ============================================================
 $ErrorActionPreference = 'Stop'
-$env:Path = 'C:\v;C:\mingw64\bin;' + $env:Path
+# velo toolchain: use it from PATH when available, else the default install dir
+if (-not (Get-Command velo -ErrorAction SilentlyContinue)) {
+    if (Test-Path 'C:\v') { $env:Path = 'C:\v;C:\mingw64\bin;' + $env:Path }
+}
 $env:VFLAGS = '-cc gcc'
 $proj = Split-Path -Parent $MyInvocation.MyCommand.Path
-$clean = 'C:\velo\mergeweb'
+# clean build dir: prefer the default C:\velo (fast local disk); any machine without
+# it (e.g. a fresh GitHub clone) falls back to a per-user temp dir
+$veloRoot = if (Test-Path 'C:\velo') { 'C:\velo' } else { Join-Path $env:TEMP 'velo' }
+$clean = Join-Path $veloRoot 'mergeweb'
 
 Write-Host '== sync project to clean path =='
 if (Test-Path $clean) { Remove-Item $clean -Recurse -Force }
@@ -84,7 +90,8 @@ Set-Content (Join-Path $dst 'watch.txt') (Get-Date -Format o) -Encoding UTF8 -No
 # ---- copy the bundle as a standalone Velo engine JS library ----
 $lib = Join-Path $proj 'web\velo-lib'
 New-Item -ItemType Directory -Force -Path $lib | Out-Null
-if ($game) { Copy-Item $game.FullName (Join-Path $lib 'velo-engine.js') -Force }
+$final = Get-ChildItem (Join-Path $dst 'game.*.js') | Select-Object -First 1
+if ($final) { Copy-Item $final.FullName (Join-Path $lib 'velo-engine.js') -Force }
 
 Write-Host "OK - web build at $dst"
 Write-Host 'Local run: double-click web\start_server.bat  then open http://localhost:8090/build/webgl/'

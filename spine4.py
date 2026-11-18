@@ -12,8 +12,8 @@ import math
 from PIL import Image
 
 def main():
-    kine = sys.argv[1] if len(sys.argv) > 1 else r'C:\New folder\Hangrong\merge-game\assets\Kine\pixelforge-soi-auto-rig-CU2.kine'
-    out = sys.argv[2] if len(sys.argv) > 2 else r'C:\New folder\Hangrong\merge-game\assets\kine'
+    kine = sys.argv[1] if len(sys.argv) > 1 else r'os.path.dirname(os.path.abspath(__file__))\assets\Kine\pixelforge-soi-auto-rig-CU2.kine'
+    out = sys.argv[2] if len(sys.argv) > 2 else r'os.path.dirname(os.path.abspath(__file__))\assets\kine'
     base = 'boss_soi_spine'
 
     z = zipfile.ZipFile(kine)

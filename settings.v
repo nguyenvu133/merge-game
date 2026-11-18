@@ -223,6 +223,16 @@ fn (mut s SettingsUI) update(dt f32) {
 				st.delete('unlocked')
 				st.delete('current_level')
 				st.delete('save_json')
+				st.delete('gems')
+				st.delete('stat_kills')
+				st.delete('stat_merges')
+				st.delete('stat_wins')
+				st.delete('stat_bosses')
+				st.delete('max_level')
+				st.delete('daily_bonus')
+				for i in 0 .. 12 {
+					st.delete('ach_${achievement_defs()[i].id}')
+				}
 				s.close()
 				sc.change_scene('scenes/map.scene', fade: 0.3)
 				return

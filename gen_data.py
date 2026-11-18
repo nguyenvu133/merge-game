@@ -4,8 +4,9 @@ import json
 import io
 import os
 
-BASE = r'C:\New folder\Hangrong\merge-game\assets\data'
-OUT = r'C:\New folder\Hangrong\merge-game\data.v'
+HERE = os.path.dirname(os.path.abspath(__file__))
+BASE = os.path.join(HERE, 'assets', 'data')
+OUT = os.path.join(HERE, 'data.v')
 
 def load(name):
     with io.open(os.path.join(BASE, name), encoding='utf-8') as f:
@@ -27,7 +28,7 @@ bosses = b['list']
 team = t['default']
 
 # array sizes (the "max arrays" — extend here + in the JSONs)
-TEAM_N, ENEMY_N, SKILL_N, EFFECT_N, PARTICLE_N, BOSS_N = 8, 20, 24, 13, 16, 10
+TEAM_N, ENEMY_N, SKILL_N, EFFECT_N, PARTICLE_N, BOSS_N = 8, 20, 33, 13, 16, 10
 
 def q(s):
     return "'" + s.replace("'", "\\'") + "'"
@@ -121,23 +122,17 @@ pub mut:
 }
 
 struct GameData {
-pub mut:
-\telements   [{EL_N}]ElementData
-\tenemies    [{ENEMY_N}]EnemyData
-\tparticles  [{PARTICLE_N}]ParticleData
-\tskills     [{SKILL_N}]SkillData
-\teffects    [{EFFECT_N}]EffectData
-\tteam       [{TEAM_N}]TeamSlot
+\telements   []ElementData
+\tenemies    []EnemyData
+\tparticles  []ParticleData
+\tskills     []SkillData
+\teffects    []EffectData
+\tteam       []TeamSlot
 \tboss       BossData
-\tbosses     [{BOSS_N}]BossData
+\tbosses     []BossData
 \tlevel_mult f32
 \tlevels     LevelTuning
-\tready      bool
 }
-
-__global (
-\tg_data GameData
-)
 
 fn element_index(e string) int {
 \treturn match e {
@@ -153,6 +148,15 @@ fn element_index(e string) int {
 \t\t'mud'   { 9 }
 \t\t'mist'  { 10 }
 \t\t'dust'  { 11 }
+\t\t'plasma' { 12 }
+\t\t'frostfire' { 13 }
+\t\t'thunder' { 14 }
+\t\t'glacier' { 15 }
+\t\t'crystal' { 16 }
+\t\t'permafrost' { 17 }
+\t\t'storm' { 18 }
+\t\t'blizzard' { 19 }
+\t\t'hail'  { 20 }
 \t\telse    { 5 }
 \t}
 }
@@ -174,6 +178,7 @@ fn particle_index(tag string) int {
 \t\t'stun_star'  { 12 }
 \t\t'combo'      { 13 }
 \t\t'heal_big'   { 14 }
+\t\t'elite'      { 15 }
 \t\telse         { 15 }
 \t}
 }
@@ -204,6 +209,15 @@ fn skill_index(s string) int {
 \t\t'mud_slam' { 21 }
 \t\t'mist_bolt' { 22 }
 \t\t'dust_gust' { 23 }
+\t\t'plasma_shot' { 24 }
+\t\t'frostfire_blast' { 25 }
+\t\t'thunder_bolt' { 26 }
+\t\t'glacier_beam' { 27 }
+\t\t'crystal_shard' { 28 }
+\t\t'permafrost_slam' { 29 }
+\t\t'storm_blast' { 30 }
+\t\t'blizzard_wind' { 31 }
+\t\t'hail_storm' { 32 }
 \t\telse         { 24 }
 \t}
 }
@@ -227,18 +241,16 @@ fn effect_index(e string) int {
 \t}
 }
 
-fn init_game_data() {
-\tif g_data.ready {
-\t\treturn
-\t}
-\tg_data.level_mult = {level_mult}
-\tg_data.elements = {elements}
-\tg_data.enemies = {enemies}
-\tg_data.particles = {particles}
-\tg_data.skills = {skills}
-\tg_data.effects = {effects}
-\tg_data.team = {team}
-\tg_data.boss = BossData{
+// g_data — full balance data as a CONST (no __global / -enable-globals needed),
+// so the game compiles from a plain GitHub clone. Regenerate: python gen_data.py
+const g_data = GameData{
+\telements:   {elements}
+\tenemies:    {enemies}
+\tparticles:  {particles}
+\tskills:     {skills}
+\teffects:    {effects}
+\tteam:       {team}
+\tboss:       BossData{
 \t\tevery:       {boss_every}
 \t\thp_mult:     {boss_hp}
 \t\tdmg_mult:    {boss_dmg}
@@ -250,8 +262,9 @@ fn init_game_data() {
 \t\tname:        {boss_name}
 \t\ttint:        [{boss_tint}]!
 \t}
-\tg_data.bosses = {bosses}
-\tg_data.levels = LevelTuning{
+\tbosses:     {bosses}
+\tlevel_mult: {level_mult}
+\tlevels:     LevelTuning{
 \t\tcount:       {lv_count}
 \t\tbase_reward: {lv_base}
 \t\treward_step: {lv_step}
@@ -262,12 +275,12 @@ fn init_game_data() {
 \t\tmtype_scale: {lv_mscale}
 \t\tlevel_scale: {lv_lscale}
 \t}
-\tg_data.ready = true
 }
 ''')
 
+el_keys = ['fire', 'water', 'earth', 'wind', 'lightning', 'ice', 'steam', 'lava', 'ember', 'mud', 'mist', 'dust', 'plasma', 'frostfire', 'thunder', 'glacier', 'crystal', 'permafrost', 'storm', 'blizzard', 'hail']
 el_list = []
-for key in ['fire', 'water', 'earth', 'wind', 'lightning', 'ice', 'steam', 'lava', 'ember', 'mud', 'mist', 'dust']:
+for key in el_keys:
     e = els[key]
     el_list.append('ElementData{%s, %s, %s, %s, %s, %s, %s, %s}' % (
         e['hp'], e['dmg'], e['spd'], str(e['ranged']).lower(), e['range'],
@@ -286,7 +299,7 @@ for i in range(1, ENEMY_N + 1):
         q(e['tex']), e['size'][0], e['size'][1], tnt[0], tnt[1], tnt[2]))
 lines.append('fn enemy_data(mtype int) EnemyData {\n\tidx := if mtype < 1 { 0 } else if mtype > %d { %d } else { mtype - 1 }\n\treturn g_data.enemies[idx]\n}\n' % (ENEMY_N, ENEMY_N - 1))
 
-pt_tags = ['spawn', 'merge', 'kill', 'levelup', 'win', 'boss_death', 'crit', 'heal', 'freeze', 'banner', 'meteor', 'freeze_break', 'stun_star', 'combo', 'heal_big', 'explode']
+pt_tags = ['spawn', 'merge', 'kill', 'levelup', 'win', 'boss_death', 'crit', 'heal', 'freeze', 'banner', 'meteor', 'freeze_break', 'stun_star', 'combo', 'heal_big', 'elite']
 pt_list = []
 for tag in pt_tags:
     p = particles.get(tag)
@@ -296,7 +309,7 @@ for tag in pt_tags:
         p['count'], p['size'], p['speed'], p['lifetime'], q(p['texture'])))
 lines.append('fn particle_data(tag string) ParticleData {\n\treturn g_data.particles[particle_index(tag)]\n}\n')
 
-sk_keys = ['fire_shot', 'water_bolt', 'earth_slam', 'wind_gust', 'boss_rain', 'boss_slam', 'boss_ice', 'heal', 'boss_meteor', 'boss_freeze', 'boss_stunwave', 'ultimate', 'lightning_strike', 'ice_freeze', 'ember_aura', 'stone_guard', 'nature_regen', 'shadow_hex', 'steam_cloud', 'lava_burst', 'ember_shot', 'mud_slam', 'mist_bolt', 'dust_gust']
+sk_keys = ['fire_shot', 'water_bolt', 'earth_slam', 'wind_gust', 'boss_rain', 'boss_slam', 'boss_ice', 'heal', 'boss_meteor', 'boss_freeze', 'boss_stunwave', 'ultimate', 'lightning_strike', 'ice_freeze', 'ember_aura', 'stone_guard', 'nature_regen', 'shadow_hex', 'steam_cloud', 'lava_burst', 'ember_shot', 'mud_slam', 'mist_bolt', 'dust_gust', 'plasma_shot', 'frostfire_blast', 'thunder_bolt', 'glacier_beam', 'crystal_shard', 'permafrost_slam', 'storm_blast', 'blizzard_wind', 'hail_storm']
 sk_list = []
 for key in sk_keys:
     s = skills.get(key)
@@ -340,18 +353,18 @@ lines.append('fn is_boss_level(n int) bool {\n\treturn g_data.boss.every > 0 && 
 
 src = '\n'.join(lines)
 repl = {
-    '{EL_N}': '12',
+    '{EL_N}': '21',
     '{TEAM_N}': str(TEAM_N), '{ENEMY_N}': str(ENEMY_N),
     '{SKILL_N}': str(SKILL_N), '{EFFECT_N}': str(EFFECT_N), '{PARTICLE_N}': str(PARTICLE_N),
     '{BOSS_N}': str(BOSS_N),
     '{level_mult}': str(m['level_mult']),
-    '{elements}': '[' + ', '.join(el_list) + ']!',
-    '{enemies}': '[' + ', '.join(en_list) + ']!',
-    '{particles}': '[' + ', '.join(pt_list) + ']!',
-    '{skills}': '[' + ', '.join(sk_list) + ']!',
-    '{effects}': '[' + ', '.join(ef_list) + ']!',
-    '{team}': '[' + ', '.join(tm_list) + ']!',
-    '{bosses}': '[' + ', '.join(bo_list) + ']!',
+    '{elements}': '[' + ', '.join(el_list) + ']',
+    '{enemies}': '[' + ', '.join(en_list) + ']',
+    '{particles}': '[' + ', '.join(pt_list) + ']',
+    '{skills}': '[' + ', '.join(sk_list) + ']',
+    '{effects}': '[' + ', '.join(ef_list) + ']',
+    '{team}': '[' + ', '.join(tm_list) + ']',
+    '{bosses}': '[' + ', '.join(bo_list) + ']',
     '{boss_every}': str(b['every']), '{boss_hp}': str(bosses[0]['hp_mult']),
     '{boss_dmg}': str(bosses[0]['dmg_mult']), '{boss_spd}': str(bosses[0]['spd']),
     '{boss_skill}': q(bosses[0]['skill']), '{boss_tex}': q(bosses[0]['tex']),
@@ -368,4 +381,4 @@ for k, v in repl.items():
     src = src.replace(k, v)
 
 io.open(OUT, 'w', encoding='utf-8', newline='\n').write(src)
-print('OK regenerated data.v (enemies=%d skills=%d effects=%d bosses=%d)' % (ENEMY_N, SKILL_N, EFFECT_N, BOSS_N))
+print('OK regenerated data.v (elements=%d enemies=%d skills=%d effects=%d bosses=%d)' % (len(el_keys), ENEMY_N, SKILL_N, EFFECT_N, BOSS_N))

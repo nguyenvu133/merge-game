@@ -26,6 +26,7 @@ pub mut:
 	kill_coins int = 6 // coins each kill grants the player
 	alive    bool = true
 	is_boss  bool // enemy boss: big stats, multi-shot skill, extra reward
+	is_elite bool // golden elite enemy: bigger, tankier, 3x coins
 	skill    string // skill key from game data (e.g. 'boss_rain')
 	dot_dps  f32 // damage over time per second (burn/poison)
 	dot_left f32 // seconds of DoT remaining
@@ -196,6 +197,9 @@ fn monster_tex(e string, level int) assets.AssetRef[assets.Texture] {
 }
 
 // base art size for a player monster, grown a bit per level.
+// Kept small enough that units NEVER overlap their grid cells: cells are
+// 94px apart horizontally and 100px vertically, so a unit must stay under
+// ~90px wide / ~96px tall even at max level.
 fn monster_size(e string, level int) core.Vec2 {
 	base := match e {
 		'fire'  { core.vec2(108, 171) }
@@ -205,10 +209,10 @@ fn monster_size(e string, level int) core.Vec2 {
 	}
 	// cap the level growth so high-level units still fit their grid cell
 	mut lv := level
-	if lv > 6 {
-		lv = 6
+	if lv > 4 {
+		lv = 4
 	}
-	k := 0.42 * (1 + 0.16 * f32(lv - 1)) // 50% zoom: units small, like the reference arena
+	k := 0.40 * (1 + 0.10 * f32(lv - 1)) // max 0.52 at L4: fire 56x89, water 72x89 — fits 94/100 cells
 	return core.vec2(base.x * k, base.y * k)
 }
 

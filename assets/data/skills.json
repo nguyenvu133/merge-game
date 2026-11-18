@@ -167,6 +167,69 @@
    "range": 250,
    "count": 1,
    "effect": "weak"
+  },
+  "plasma_shot": {
+   "type": "projectile",
+   "dmg_mult": 1.2,
+   "range": 255,
+   "count": 1,
+   "effect": "burn"
+  },
+  "frostfire_blast": {
+   "type": "projectile",
+   "dmg_mult": 1.15,
+   "range": 245,
+   "count": 2,
+   "effect": "slow"
+  },
+  "thunder_bolt": {
+   "type": "projectile",
+   "dmg_mult": 1.3,
+   "range": 260,
+   "count": 1,
+   "effect": "stun"
+  },
+  "glacier_beam": {
+   "type": "projectile",
+   "dmg_mult": 1.2,
+   "range": 235,
+   "count": 2,
+   "effect": "freeze"
+  },
+  "crystal_shard": {
+   "type": "projectile",
+   "dmg_mult": 1.2,
+   "range": 250,
+   "count": 1,
+   "effect": "stun"
+  },
+  "permafrost_slam": {
+   "type": "melee",
+   "dmg_mult": 1.25,
+   "range": 0,
+   "count": 1,
+   "effect": "freeze"
+  },
+  "storm_blast": {
+   "type": "projectile",
+   "dmg_mult": 1.3,
+   "range": 280,
+   "count": 2,
+   "effect": "slow"
+  },
+  "blizzard_wind": {
+   "type": "projectile",
+   "dmg_mult": 1.2,
+   "range": 265,
+   "count": 2,
+   "effect": "freeze"
+  },
+  "hail_storm": {
+   "type": "projectile",
+   "dmg_mult": 1.25,
+   "range": 255,
+   "count": 3,
+   "effect": "slow"
   }
  }
 }

@@ -86,23 +86,17 @@ pub mut:
 }
 
 struct GameData {
-pub mut:
-	elements   [12]ElementData
-	enemies    [20]EnemyData
-	particles  [16]ParticleData
-	skills     [24]SkillData
-	effects    [13]EffectData
-	team       [8]TeamSlot
+	elements   []ElementData
+	enemies    []EnemyData
+	particles  []ParticleData
+	skills     []SkillData
+	effects    []EffectData
+	team       []TeamSlot
 	boss       BossData
-	bosses     [10]BossData
+	bosses     []BossData
 	level_mult f32
 	levels     LevelTuning
-	ready      bool
 }
-
-__global (
-	g_data GameData
-)
 
 fn element_index(e string) int {
 	return match e {
@@ -118,6 +112,15 @@ fn element_index(e string) int {
 		'mud'   { 9 }
 		'mist'  { 10 }
 		'dust'  { 11 }
+		'plasma' { 12 }
+		'frostfire' { 13 }
+		'thunder' { 14 }
+		'glacier' { 15 }
+		'crystal' { 16 }
+		'permafrost' { 17 }
+		'storm' { 18 }
+		'blizzard' { 19 }
+		'hail'  { 20 }
 		else    { 5 }
 	}
 }
@@ -139,6 +142,7 @@ fn particle_index(tag string) int {
 		'stun_star'  { 12 }
 		'combo'      { 13 }
 		'heal_big'   { 14 }
+		'elite'      { 15 }
 		else         { 15 }
 	}
 }
@@ -169,6 +173,15 @@ fn skill_index(s string) int {
 		'mud_slam' { 21 }
 		'mist_bolt' { 22 }
 		'dust_gust' { 23 }
+		'plasma_shot' { 24 }
+		'frostfire_blast' { 25 }
+		'thunder_bolt' { 26 }
+		'glacier_beam' { 27 }
+		'crystal_shard' { 28 }
+		'permafrost_slam' { 29 }
+		'storm_blast' { 30 }
+		'blizzard_wind' { 31 }
+		'hail_storm' { 32 }
 		else         { 24 }
 	}
 }
@@ -192,18 +205,16 @@ fn effect_index(e string) int {
 	}
 }
 
-fn init_game_data() {
-	if g_data.ready {
-		return
-	}
-	g_data.level_mult = 1.32
-	g_data.elements = [ElementData{60, 13, 1.0, false, 0, 'monsters/fire', 'fx/proj_fire.png', 'fire_shot'}, ElementData{80, 11, 1.4, true, 210, 'monsters/water', 'fx/proj_water.png', 'water_bolt'}, ElementData{105, 15, 1.8, false, 0, 'monsters/earth', 'fx/proj_earth.png', 'earth_slam'}, ElementData{48, 10, 0.8, true, 280, 'monsters/wind', 'fx/proj_wind.png', 'wind_gust'}, ElementData{70, 16, 1.1, true, 250, 'monsters/fire1.png', 'fx/proj_earth.png', 'lightning_strike'}, ElementData{90, 12, 1.3, true, 230, 'monsters/water1.png', 'fx/proj_water.png', 'ice_freeze'}, ElementData{90, 13, 1.2, true, 220, 'monsters/steam', 'fx/proj_water.png', 'steam_cloud'}, ElementData{120, 16, 1.3, false, 0, 'monsters/lava', 'fx/proj_fire.png', 'lava_burst'}, ElementData{75, 14, 0.9, true, 260, 'monsters/ember', 'fx/proj_fire.png', 'ember_shot'}, ElementData{130, 13, 1.5, false, 0, 'monsters/mud', 'fx/proj_earth.png', 'mud_slam'}, ElementData{80, 12, 1.0, true, 240, 'monsters/mist', 'fx/proj_water.png', 'mist_bolt'}, ElementData{100, 14, 1.2, true, 250, 'monsters/dust', 'fx/proj_wind.png', 'dust_gust'}]!
-	g_data.enemies = [EnemyData{42, 7, 1.7, false, 0, 'enemies/monter1.png', [f32(191), 221]!, [f32(255), 255, 255]!}, EnemyData{58, 9, 1.5, false, 0, 'enemies/monter2.png', [f32(283), 269]!, [f32(255), 255, 255]!}, EnemyData{75, 11, 1.4, true, 190, 'enemies/monter3.png', [f32(172), 167]!, [f32(255), 255, 255]!}, EnemyData{95, 13, 1.25, true, 225, 'enemies/monter4.png', [f32(236), 231]!, [f32(255), 255, 255]!}, EnemyData{120, 16, 1.1, true, 260, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{150, 20, 1.0, true, 280, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{185, 24, 0.9, true, 300, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{225, 28, 0.8, true, 320, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{270, 32, 0.7, true, 340, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{320, 36, 0.7, true, 340, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{375, 40, 0.7, true, 340, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{435, 45, 0.7, true, 340, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{500, 50, 0.65, true, 340, 'enemies/monter1.png', [f32(191), 221]!, [f32(255), 120, 80]!}, EnemyData{580, 56, 0.65, true, 345, 'enemies/monter2.png', [f32(283), 269]!, [f32(120), 255, 140]!}, EnemyData{660, 62, 0.6, true, 350, 'enemies/monter3.png', [f32(172), 167]!, [f32(255), 220, 100]!}, EnemyData{750, 69, 0.6, true, 355, 'enemies/monter4.png', [f32(236), 231]!, [f32(140), 180, 255]!}, EnemyData{850, 77, 0.55, true, 360, 'enemies/monter5.png', [f32(263), 230]!, [f32(200), 120, 255]!}, EnemyData{960, 86, 0.55, true, 365, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 100, 200]!}, EnemyData{1080, 96, 0.5, true, 370, 'enemies/monter5.png', [f32(263), 230]!, [f32(100), 255, 220]!}, EnemyData{1200, 108, 0.5, true, 375, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 90, 60]!}]!
-	g_data.particles = [ParticleData{16, 16, 110, 0.6, 'fx/proj_fire.png'}, ParticleData{30, 20, 170, 0.65, 'fx/proj_wind.png'}, ParticleData{14, 13, 120, 0.6, 'fx/proj_magic.png'}, ParticleData{20, 16, 140, 0.6, 'fx/proj_magic.png'}, ParticleData{40, 18, 220, 0.8, 'fx/proj_wind.png'}, ParticleData{60, 26, 260, 0.9, 'fx/proj_fire.png'}, ParticleData{24, 20, 200, 0.7, 'fx/proj_fire.png'}, ParticleData{18, 14, 120, 0.7, 'fx/proj_wind.png'}, ParticleData{22, 14, 140, 0.7, 'fx/proj_magic.png'}, ParticleData{18, 14, 150, 0.6, 'fx/proj_fire.png'}, ParticleData{22, 15, 150, 0.7, 'fx/proj_fire.png'}, ParticleData{26, 16, 165, 0.7, 'fx/proj_fire.png'}, ParticleData{30, 17, 180, 0.7, 'fx/proj_fire.png'}, ParticleData{34, 18, 195, 0.7, 'fx/proj_fire.png'}, ParticleData{38, 19, 210, 0.7, 'fx/proj_fire.png'}, ParticleData{42, 20, 225, 0.7, 'fx/proj_fire.png'}]!
-	g_data.skills = [SkillData{'melee', 1.0, 0, 1, 'burn'}, SkillData{'projectile', 1.0, 210, 1, 'splash'}, SkillData{'melee', 1.0, 0, 1, 'stun'}, SkillData{'projectile', 1.0, 280, 1, 'slow'}, SkillData{'projectile', 0.8, 320, 3, 'burn'}, SkillData{'melee', 1.6, 0, 1, 'stun'}, SkillData{'projectile', 1.2, 300, 5, 'freeze'}, SkillData{'heal', -0.3, 0, 1, 'regen'}, SkillData{'projectile', 2.0, 340, 6, 'burn'}, SkillData{'projectile', 1.4, 320, 5, 'freeze'}, SkillData{'melee', 2.2, 0, 1, 'stun'}, SkillData{'projectile', 3.0, 400, 1, 'burn'}, SkillData{'projectile', 1.5, 250, 1, 'stun'}, SkillData{'projectile', 1.2, 230, 1, 'freeze'}, SkillData{'melee', 1.0, 0, 1, 'atk_up'}, SkillData{'melee', 1.0, 0, 1, 'shield'}, SkillData{'heal', -0.2, 0, 1, 'regen'}, SkillData{'projectile', 1.3, 240, 1, 'weak'}, SkillData{'projectile', 1.1, 220, 2, 'slow'}, SkillData{'melee', 1.3, 0, 1, 'burn'}, SkillData{'projectile', 1.2, 260, 1, 'burn'}, SkillData{'melee', 1.2, 0, 1, 'stun'}, SkillData{'projectile', 1.1, 240, 1, 'freeze'}, SkillData{'projectile', 1.2, 250, 1, 'weak'}]!
-	g_data.effects = [EffectData{'burn', 3, 0.0, 3.0}, EffectData{'area', 60, 0.5, 0.0}, EffectData{'stun', 1.0, 0.0, 0.0}, EffectData{'knockback', 40, 0.0, 0.0}, EffectData{'freeze', 1.5, 0.0, 0.0}, EffectData{'poison', 5, 0.0, 4.0}, EffectData{'burn', 8, 0.0, 5.0}, EffectData{'weak', 0.6, 0.0, 3.0}, EffectData{'slow', 0.5, 0.0, 2.5}, EffectData{'area', 90, 0.8, 0.0}, EffectData{'atk_up', 1.5, 0.0, 5.0}, EffectData{'shield', 80, 0.0, 0.0}, EffectData{'regen', 6, 0.0, 4.0}]!
-	g_data.team = [TeamSlot{'fire', 1}, TeamSlot{'wind', 1}, TeamSlot{'water', 1}, TeamSlot{'earth', 1}, TeamSlot{'', 0}, TeamSlot{'', 0}, TeamSlot{'', 0}, TeamSlot{'', 0}]!
-	g_data.boss = BossData{
+// g_data — full balance data as a CONST (no __global / -enable-globals needed),
+// so the game compiles from a plain GitHub clone. Regenerate: python gen_data.py
+const g_data = GameData{
+	elements:   [ElementData{60, 13, 1.0, false, 0, 'monsters/fire', 'fx/proj_fire.png', 'fire_shot'}, ElementData{80, 11, 1.4, true, 210, 'monsters/water', 'fx/proj_water.png', 'water_bolt'}, ElementData{105, 15, 1.8, false, 0, 'monsters/earth', 'fx/proj_earth.png', 'earth_slam'}, ElementData{48, 10, 0.8, true, 280, 'monsters/wind', 'fx/proj_wind.png', 'wind_gust'}, ElementData{70, 16, 1.1, true, 250, 'monsters/fire1.png', 'fx/proj_earth.png', 'lightning_strike'}, ElementData{90, 12, 1.3, true, 230, 'monsters/water1.png', 'fx/proj_water.png', 'ice_freeze'}, ElementData{90, 13, 1.2, true, 220, 'monsters/steam', 'fx/proj_water.png', 'steam_cloud'}, ElementData{120, 16, 1.3, false, 0, 'monsters/lava', 'fx/proj_fire.png', 'lava_burst'}, ElementData{75, 14, 0.9, true, 260, 'monsters/ember', 'fx/proj_fire.png', 'ember_shot'}, ElementData{130, 13, 1.5, false, 0, 'monsters/mud', 'fx/proj_earth.png', 'mud_slam'}, ElementData{80, 12, 1.0, true, 240, 'monsters/mist', 'fx/proj_water.png', 'mist_bolt'}, ElementData{100, 14, 1.2, true, 250, 'monsters/dust', 'fx/proj_wind.png', 'dust_gust'}, ElementData{85, 17, 0.95, true, 255, 'monsters/plasma', 'fx/proj_fire.png', 'plasma_shot'}, ElementData{100, 15, 1.05, true, 245, 'monsters/frostfire', 'fx/proj_fire.png', 'frostfire_blast'}, ElementData{95, 16, 1.0, true, 260, 'monsters/thunder', 'fx/proj_magic.png', 'thunder_bolt'}, ElementData{120, 14, 1.3, true, 235, 'monsters/glacier', 'fx/proj_water.png', 'glacier_beam'}, ElementData{115, 16, 1.1, true, 250, 'monsters/crystal', 'fx/proj_magic.png', 'crystal_shard'}, ElementData{135, 14, 1.5, false, 0, 'monsters/permafrost', 'fx/proj_earth.png', 'permafrost_slam'}, ElementData{85, 17, 0.85, true, 280, 'monsters/storm', 'fx/proj_wind.png', 'storm_blast'}, ElementData{95, 15, 0.9, true, 265, 'monsters/blizzard', 'fx/proj_wind.png', 'blizzard_wind'}, ElementData{105, 16, 0.95, true, 255, 'monsters/hail', 'fx/proj_magic.png', 'hail_storm'}]
+	enemies:    [EnemyData{42, 7, 1.7, false, 0, 'enemies/monter1.png', [f32(191), 221]!, [f32(255), 255, 255]!}, EnemyData{58, 9, 1.5, false, 0, 'enemies/monter2.png', [f32(283), 269]!, [f32(255), 255, 255]!}, EnemyData{75, 11, 1.4, true, 190, 'enemies/monter3.png', [f32(172), 167]!, [f32(255), 255, 255]!}, EnemyData{95, 13, 1.25, true, 225, 'enemies/monter4.png', [f32(236), 231]!, [f32(255), 255, 255]!}, EnemyData{120, 16, 1.1, true, 260, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{150, 20, 1.0, true, 280, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{185, 24, 0.9, true, 300, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{225, 28, 0.8, true, 320, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{270, 32, 0.7, true, 340, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{320, 36, 0.7, true, 340, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{375, 40, 0.7, true, 340, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{435, 45, 0.7, true, 340, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 255, 255]!}, EnemyData{500, 50, 0.65, true, 340, 'enemies/monter1.png', [f32(191), 221]!, [f32(255), 120, 80]!}, EnemyData{580, 56, 0.65, true, 345, 'enemies/monter2.png', [f32(283), 269]!, [f32(120), 255, 140]!}, EnemyData{660, 62, 0.6, true, 350, 'enemies/monter3.png', [f32(172), 167]!, [f32(255), 220, 100]!}, EnemyData{750, 69, 0.6, true, 355, 'enemies/monter4.png', [f32(236), 231]!, [f32(140), 180, 255]!}, EnemyData{850, 77, 0.55, true, 360, 'enemies/monter5.png', [f32(263), 230]!, [f32(200), 120, 255]!}, EnemyData{960, 86, 0.55, true, 365, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 100, 200]!}, EnemyData{1080, 96, 0.5, true, 370, 'enemies/monter5.png', [f32(263), 230]!, [f32(100), 255, 220]!}, EnemyData{1200, 108, 0.5, true, 375, 'enemies/monter5.png', [f32(263), 230]!, [f32(255), 90, 60]!}]
+	particles:  [ParticleData{16, 16, 110, 0.6, 'fx/proj_fire.png'}, ParticleData{30, 20, 170, 0.65, 'fx/proj_wind.png'}, ParticleData{14, 13, 120, 0.6, 'fx/proj_magic.png'}, ParticleData{20, 16, 140, 0.6, 'fx/proj_magic.png'}, ParticleData{40, 18, 220, 0.8, 'fx/proj_wind.png'}, ParticleData{60, 26, 260, 0.9, 'fx/proj_fire.png'}, ParticleData{24, 20, 200, 0.7, 'fx/proj_fire.png'}, ParticleData{18, 14, 120, 0.7, 'fx/proj_wind.png'}, ParticleData{22, 14, 140, 0.7, 'fx/proj_magic.png'}, ParticleData{18, 14, 150, 0.6, 'fx/proj_fire.png'}, ParticleData{22, 15, 150, 0.7, 'fx/proj_fire.png'}, ParticleData{26, 16, 165, 0.7, 'fx/proj_fire.png'}, ParticleData{30, 17, 180, 0.7, 'fx/proj_fire.png'}, ParticleData{34, 18, 195, 0.7, 'fx/proj_fire.png'}, ParticleData{38, 19, 210, 0.7, 'fx/proj_fire.png'}, ParticleData{34, 18, 200, 0.8, 'fx/proj_wind.png'}]
+	skills:     [SkillData{'melee', 1.0, 0, 1, 'burn'}, SkillData{'projectile', 1.0, 210, 1, 'splash'}, SkillData{'melee', 1.0, 0, 1, 'stun'}, SkillData{'projectile', 1.0, 280, 1, 'slow'}, SkillData{'projectile', 0.8, 320, 3, 'burn'}, SkillData{'melee', 1.6, 0, 1, 'stun'}, SkillData{'projectile', 1.2, 300, 5, 'freeze'}, SkillData{'heal', -0.3, 0, 1, 'regen'}, SkillData{'projectile', 2.0, 340, 6, 'burn'}, SkillData{'projectile', 1.4, 320, 5, 'freeze'}, SkillData{'melee', 2.2, 0, 1, 'stun'}, SkillData{'projectile', 3.0, 400, 1, 'burn'}, SkillData{'projectile', 1.5, 250, 1, 'stun'}, SkillData{'projectile', 1.2, 230, 1, 'freeze'}, SkillData{'melee', 1.0, 0, 1, 'atk_up'}, SkillData{'melee', 1.0, 0, 1, 'shield'}, SkillData{'heal', -0.2, 0, 1, 'regen'}, SkillData{'projectile', 1.3, 240, 1, 'weak'}, SkillData{'projectile', 1.1, 220, 2, 'slow'}, SkillData{'melee', 1.3, 0, 1, 'burn'}, SkillData{'projectile', 1.2, 260, 1, 'burn'}, SkillData{'melee', 1.2, 0, 1, 'stun'}, SkillData{'projectile', 1.1, 240, 1, 'freeze'}, SkillData{'projectile', 1.2, 250, 1, 'weak'}, SkillData{'projectile', 1.2, 255, 1, 'burn'}, SkillData{'projectile', 1.15, 245, 2, 'slow'}, SkillData{'projectile', 1.3, 260, 1, 'stun'}, SkillData{'projectile', 1.2, 235, 2, 'freeze'}, SkillData{'projectile', 1.2, 250, 1, 'stun'}, SkillData{'melee', 1.25, 0, 1, 'freeze'}, SkillData{'projectile', 1.3, 280, 2, 'slow'}, SkillData{'projectile', 1.2, 265, 2, 'freeze'}, SkillData{'projectile', 1.25, 255, 3, 'slow'}]
+	effects:    [EffectData{'burn', 3, 0.0, 3.0}, EffectData{'area', 60, 0.5, 0.0}, EffectData{'stun', 1.0, 0.0, 0.0}, EffectData{'knockback', 40, 0.0, 0.0}, EffectData{'freeze', 1.5, 0.0, 0.0}, EffectData{'poison', 5, 0.0, 4.0}, EffectData{'burn', 8, 0.0, 5.0}, EffectData{'weak', 0.6, 0.0, 3.0}, EffectData{'slow', 0.5, 0.0, 2.5}, EffectData{'area', 90, 0.8, 0.0}, EffectData{'atk_up', 1.5, 0.0, 5.0}, EffectData{'shield', 80, 0.0, 0.0}, EffectData{'regen', 6, 0.0, 4.0}]
+	team:       [TeamSlot{'fire', 1}, TeamSlot{'wind', 1}, TeamSlot{'water', 1}, TeamSlot{'earth', 1}, TeamSlot{'', 0}, TeamSlot{'', 0}, TeamSlot{'', 0}, TeamSlot{'', 0}]
+	boss:       BossData{
 		every:       10
 		hp_mult:     9.0
 		dmg_mult:    1.8
@@ -215,8 +226,9 @@ fn init_game_data() {
 		name:        'EMBER'
 		tint:        [f32(255), 120, 60]!
 	}
-	g_data.bosses = [BossData{10, 9.0, 1.8, 0.9, 'boss_rain', 'Kine/boss_soi.png', 1.6, 3, 'EMBER', [f32(255), 120, 60]!}, BossData{10, 10.0, 1.9, 0.95, 'boss_ice', 'Kine/boss_soi.png', 1.65, 3, 'FROST', [f32(120), 200, 255]!}, BossData{10, 11.0, 2.0, 0.85, 'boss_slam', 'Kine/boss_soi.png', 1.7, 3, 'TITAN', [f32(170), 130, 95]!}, BossData{10, 12.0, 2.1, 1.0, 'boss_rain', 'Kine/boss_soi.png', 1.7, 4, 'VENOM', [f32(140), 255, 120]!}, BossData{10, 13.0, 2.3, 1.05, 'boss_stunwave', 'Kine/boss_soi.png', 1.75, 4, 'STORM', [f32(190), 140, 255]!}, BossData{10, 14.0, 2.5, 1.0, 'boss_meteor', 'Kine/boss_soi.png', 1.8, 4, 'MAGMA', [f32(255), 90, 30]!}, BossData{10, 16.0, 2.7, 1.05, 'boss_freeze', 'Kine/boss_soi.png', 1.85, 5, 'ABYSS', [f32(70), 80, 130]!}, BossData{10, 18.0, 2.9, 1.1, 'boss_ice', 'Kine/boss_soi.png', 1.9, 5, 'CRYSTAL', [f32(200), 240, 255]!}, BossData{10, 20.0, 3.1, 1.15, 'boss_stunwave', 'Kine/boss_soi.png', 1.95, 5, 'VOID', [f32(110), 50, 160]!}, BossData{10, 23.0, 3.4, 1.2, 'boss_meteor', 'Kine/boss_soi.png', 2.0, 6, 'PRIME', [f32(255), 200, 60]!}]!
-	g_data.levels = LevelTuning{
+	bosses:     [BossData{10, 9.0, 1.8, 0.9, 'boss_rain', 'Kine/boss_soi.png', 1.6, 3, 'EMBER', [f32(255), 120, 60]!}, BossData{10, 10.0, 1.9, 0.95, 'boss_ice', 'Kine/boss_soi.png', 1.65, 3, 'FROST', [f32(120), 200, 255]!}, BossData{10, 11.0, 2.0, 0.85, 'boss_slam', 'Kine/boss_soi.png', 1.7, 3, 'TITAN', [f32(170), 130, 95]!}, BossData{10, 12.0, 2.1, 1.0, 'boss_rain', 'Kine/boss_soi.png', 1.7, 4, 'VENOM', [f32(140), 255, 120]!}, BossData{10, 13.0, 2.3, 1.05, 'boss_stunwave', 'Kine/boss_soi.png', 1.75, 4, 'STORM', [f32(190), 140, 255]!}, BossData{10, 14.0, 2.5, 1.0, 'boss_meteor', 'Kine/boss_soi.png', 1.8, 4, 'MAGMA', [f32(255), 90, 30]!}, BossData{10, 16.0, 2.7, 1.05, 'boss_freeze', 'Kine/boss_soi.png', 1.85, 5, 'ABYSS', [f32(70), 80, 130]!}, BossData{10, 18.0, 2.9, 1.1, 'boss_ice', 'Kine/boss_soi.png', 1.9, 5, 'CRYSTAL', [f32(200), 240, 255]!}, BossData{10, 20.0, 3.1, 1.15, 'boss_stunwave', 'Kine/boss_soi.png', 1.95, 5, 'VOID', [f32(110), 50, 160]!}, BossData{10, 23.0, 3.4, 1.2, 'boss_meteor', 'Kine/boss_soi.png', 2.0, 6, 'PRIME', [f32(255), 200, 60]!}]
+	level_mult: 1.32
+	levels:     LevelTuning{
 		count:       100
 		base_reward: 25
 		reward_step: 4
@@ -227,7 +239,6 @@ fn init_game_data() {
 		mtype_scale: 5
 		level_scale: 10
 	}
-	g_data.ready = true
 }
 
 fn element_data(el string) ElementData {

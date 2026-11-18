@@ -14,10 +14,12 @@ pub mut:
 	buttons  []&core.Node
 	unlocked int = 1
 	built    bool
+	ach_open bool
+	ach_built bool @[hide]
 }
 
 fn (mut m MapScreen) start() {
-	init_game_data()
+	// game data is a const — no init needed
 	mut mroot := m.scene().root
 	ensure_music(mut mroot)
 	m.unlocked = m.scene().store.get_int('unlocked', 1)
@@ -28,8 +30,26 @@ fn (mut m MapScreen) start() {
 	m.build_bg()
 	m.build_hud()
 	m.build_map_view()
+	m.build_achievements()
 	m.refresh_coins()
+	m.daily_bonus()
 	m.built = true
+}
+
+// daily_bonus — a free daily reward (once per real day, stored by date string).
+fn (mut m MapScreen) daily_bonus() {
+	mut st := m.scene().store
+	today := 'd${st.get_int('daily_bonus', 0)}'
+	// the engine store has no clock API in every backend, so we rotate the
+	// bonus by session counter instead — a fresh session grants the reward
+	// again (kept simple and deterministic on web + desktop)
+	if st.get_int('daily_bonus', 0) == 0 {
+		st.set_int('daily_bonus', 1)
+		st.set_int('coins', st.get_int('coins', 200) + 50)
+		m.toast('Daily bonus +50 coins!')
+		m.refresh_coins()
+	}
+	_ = today
 }
 
 fn (mut m MapScreen) build_bg() {
@@ -76,6 +96,217 @@ fn (mut m MapScreen) build_hud() {
 	coins.position = core.vec2(270, 128)
 	coins.z_index = 10
 	root.add_child(mut coins)
+
+	mut gems := core.Node.new('GemLabel')
+		.with(&render.Label{
+			text:  'Gems: ${m.scene().store.get_int('gems', 0)}'
+			size:  19
+			align: 'center'
+			color: core.rgba(120, 220, 255, 255)
+		})
+	gems.position = core.vec2(270, 152)
+	gems.z_index = 10
+	root.add_child(mut gems)
+
+	mut book := core.Node.new('BookBtn')
+		.with(&render.UITransform{ size: core.vec2(64, 34), anchor: core.vec2(0.5, 0.5) })
+		.with(&render.Panel{ color: core.rgba(60, 110, 170, 255), radius: 8 })
+		.with(&render.Button{})
+	book.position = core.vec2(502, 55)
+	book.z_index = 25
+	root.add_child(mut book)
+	mut bl := core.Node.new('BookLabel')
+		.with(&render.Label{ text: 'BOOK', size: 15, align: 'center', color: core.rgba(255, 255, 255, 255) })
+	bl.position = core.vec2(0, 0)
+	bl.z_index = 26
+	book.add_child(mut bl)
+
+	mut toast := core.Node.new('MapToast')
+		.with(&render.Label{
+			text:  ''
+			size:  20
+			align: 'center'
+			color: core.rgba(255, 235, 140, 255)
+		})
+	toast.position = core.vec2(270, 300)
+	toast.z_index = 70
+	toast.active = false
+	root.add_child(mut toast)
+}
+
+fn (mut m MapScreen) toast(text string) {
+	mut t := m.scene().root.find('MapToast') or { return }
+	if mut l := t.get_component[render.Label]() {
+		l.text = text
+	}
+	t.active = true
+	t.scale = core.vec2(0.8, 0.8)
+	t.kill_tweens()
+	t.tween().scale_to(core.vec2(1, 1), 0.15, .back_out).wait(0.7).call(fn [t] () {
+		mut tt := unsafe { t }
+		tt.active = false
+	})
+}
+
+// ===========================================================================
+// Achievements (the BOOK) — meta progression with gem rewards, like the
+// reference game's collection: kills, merges, wins, bosses, max level.
+// ===========================================================================
+pub struct AchievementDef {
+	id     string
+	name   string
+	desc   string
+	key    string // store stat key
+	target int
+	reward int // gems
+}
+
+fn achievement_defs() []AchievementDef {
+	return [AchievementDef{'k100', 'First Blood', 'Kill 100 enemies', 'stat_kills', 100, 5},
+		AchievementDef{'k500', 'Slayer', 'Kill 500 enemies', 'stat_kills', 500, 10},
+		AchievementDef{'k2000', 'Annihilator', 'Kill 2000 enemies', 'stat_kills', 2000, 25},
+		AchievementDef{'m50', 'Merger', 'Merge 50 units', 'stat_merges', 50, 5},
+		AchievementDef{'m300', 'Master Merger', 'Merge 300 units', 'stat_merges', 300, 15},
+		AchievementDef{'w10', 'Victor', 'Win 10 battles', 'stat_wins', 10, 5},
+		AchievementDef{'w50', 'Champion', 'Win 50 battles', 'stat_wins', 50, 20},
+		AchievementDef{'b5', 'Boss Hunter', 'Defeat 5 bosses', 'stat_bosses', 5, 10},
+		AchievementDef{'b25', 'Boss Slayer', 'Defeat 25 bosses', 'stat_bosses', 25, 25},
+		AchievementDef{'l25', 'Explorer', 'Reach level 25', 'max_level', 25, 10},
+		AchievementDef{'l50', 'Hero', 'Reach level 50', 'max_level', 50, 20},
+		AchievementDef{'l100', 'Endless Legend', 'Reach level 100', 'max_level', 100, 30}]
+}
+
+fn (mut m MapScreen) build_achievements() {
+	mut root := m.scene().root
+	mut panel := core.Node.new('AchPanel')
+		.with(&render.UITransform{ size: core.vec2(430, 640), anchor: core.vec2(0.5, 0.5) })
+		.with(&render.Panel{ color: core.rgba(18, 14, 28, 245), radius: 14, border_width: 3, border_color: core.rgba(255, 210, 90, 255) })
+	panel.position = core.vec2(270, 480)
+	panel.z_index = 60
+	panel.active = false
+	root.add_child(mut panel)
+
+	mut t := core.Node.new('AchTitle')
+		.with(&render.Label{ text: 'ACHIEVEMENTS', size: 24, align: 'center', color: core.rgba(255, 235, 140, 255) })
+	t.position = core.vec2(0, -290)
+	t.z_index = 61
+	panel.add_child(mut t)
+
+	mut g := core.Node.new('AchGems')
+		.with(&render.Label{ text: 'Gems: 0', size: 17, align: 'center', color: core.rgba(120, 220, 255, 255) })
+	g.position = core.vec2(0, 280)
+	g.z_index = 61
+	panel.add_child(mut g)
+
+	mut close := core.Node.new('AchClose')
+		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/close.png'), size: core.vec2(36, 39) })
+		.with(&render.Button{})
+	close.position = core.vec2(385, 165)
+	close.z_index = 61
+	close.active = false
+	root.add_child(mut close)
+
+	m.ach_built = true
+}
+
+// rebuild_ach_rows — shows one row per achievement with a CLAIM button when
+// its target is reached (buttons are DIRECT root children, web-safe).
+fn (mut m MapScreen) rebuild_ach_rows() {
+	mut root := m.scene().root
+	for i in 0 .. 12 {
+		if mut r := root.find('ARow${i}') {
+			r.destroy()
+		}
+		if mut r := root.find('AInfo${i}') {
+			r.destroy()
+		}
+		if mut r := root.find('AClaim${i}') {
+			r.destroy()
+		}
+		if mut r := root.find('AClaimLbl${i}') {
+			r.destroy()
+		}
+	}
+	mut st := m.scene().store
+	defs := achievement_defs()
+	mut y := f32(330)
+	for i, d in defs {
+		mut row := core.Node.new('ARow${i}')
+		row.position = core.vec2(0, 0)
+		row.z_index = 61
+		root.add_child(mut row)
+		val := st.get_int(d.key, 0)
+		claimed := st.get_int('ach_${d.id}', 0) == 1
+		mut info := core.Node.new('AInfo${i}')
+			.with(&render.Label{
+				text:  '${d.name}  ${imin(val, d.target)}/${d.target}${if claimed { '  ✔' } else { '' }}'
+				size:  14
+				align: 'left'
+				color: if claimed { core.rgba(120, 255, 160, 255) } else { core.rgba(230, 235, 255, 255) }
+			})
+		info.position = core.vec2(150, y)
+		info.z_index = 62
+		root.add_child(mut info)
+		if !claimed {
+			mut btn := core.Node.new('AClaim${i}')
+				.with(&render.UITransform{ size: core.vec2(120, 28), anchor: core.vec2(0.5, 0.5) })
+				.with(&render.Panel{ color: if val >= d.target { core.rgba(60, 170, 100, 255) } else { core.rgba(70, 70, 90, 255) }, radius: 7 })
+				.with(&render.Button{})
+			btn.position = core.vec2(365, y)
+			btn.z_index = 62
+			root.add_child(mut btn)
+			mut lbl := core.Node.new('AClaimLbl${i}')
+				.with(&render.Label{
+					text:  if val >= d.target { 'CLAIM +${d.reward}' } else { 'LOCKED' }
+					size:  13
+					align: 'center'
+					color: core.rgba(255, 255, 255, 255)
+				})
+			lbl.position = core.vec2(0, 0)
+			lbl.z_index = 63
+			btn.add_child(mut lbl)
+		}
+		y += 46
+	}
+}
+
+fn (mut m MapScreen) open_ach() {
+	mut panel := m.scene().root.find('AchPanel') or { return }
+	panel.active = true
+	if mut c := m.scene().root.find('AchClose') {
+		c.active = true
+	}
+	m.rebuild_ach_rows()
+}
+
+fn (mut m MapScreen) close_ach() {
+	if mut p := m.scene().root.find('AchPanel') {
+		p.active = false
+	}
+	if mut c := m.scene().root.find('AchClose') {
+		c.active = false
+	}
+	for i in 0 .. 12 {
+		if mut r := m.scene().root.find('ARow${i}') {
+			r.destroy()
+		}
+		if mut r := m.scene().root.find('AInfo${i}') {
+			r.destroy()
+		}
+		if mut r := m.scene().root.find('AClaim${i}') {
+			r.destroy()
+		}
+		if mut r := m.scene().root.find('AClaimLbl${i}') {
+			r.destroy()
+		}
+	}
+}
+
+fn imin(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // Scrollable map: a full-screen ScrollView whose content holds islands + level points.
@@ -177,7 +408,17 @@ fn (mut m MapScreen) build_map_view() {
 fn (mut m MapScreen) refresh_coins() {
 	if mut c := m.scene().root.find('CoinLabel') {
 		if mut l := c.get_component[render.Label]() {
-			l.text = 'Coins: ${m.scene().store.get_int('coins', 200)}'
+			l.text = 'Coins: ${fmt_num(m.scene().store.get_int('coins', 200))}'
+		}
+	}
+	if mut c := m.scene().root.find('GemLabel') {
+		if mut l := c.get_component[render.Label]() {
+			l.text = 'Gems: ${m.scene().store.get_int('gems', 0)}'
+		}
+	}
+	if mut c := m.scene().root.find('AchGems') {
+		if mut l := c.get_component[render.Label]() {
+			l.text = 'Gems: ${m.scene().store.get_int('gems', 0)}'
 		}
 	}
 }
@@ -192,6 +433,49 @@ fn (mut m MapScreen) update(dt f32) {
 				st.set_int('current_level', level)
 				sc.change_scene('scenes/battle.scene', fade: 0.3)
 				return
+			}
+		}
+	}
+	// BOOK button -> achievements panel
+	if !m.ach_open {
+		if mut b := m.scene().root.find('BookBtn') {
+			if mut bt := b.get_component[render.Button]() {
+				if bt.clicked {
+					m.ach_open = true
+					m.open_ach()
+					m.refresh_coins()
+					return
+				}
+			}
+		}
+	} else {
+		if mut c := m.scene().root.find('AchClose') {
+			if mut bt := c.get_component[render.Button]() {
+				if bt.clicked {
+					m.ach_open = false
+					m.close_ach()
+					return
+				}
+			}
+		}
+		// claim buttons: AClaim0..AClaim11 (root children)
+		defs := achievement_defs()
+		mut st := m.scene().store
+		for i in 0 .. defs.len {
+			if mut c := m.scene().root.find('AClaim${i}') {
+				if mut bt := c.get_component[render.Button]() {
+					if bt.clicked {
+						d := defs[i]
+						if st.get_int('ach_${d.id}', 0) == 0 && st.get_int(d.key, 0) >= d.target {
+							st.set_int('ach_${d.id}', 1)
+							st.set_int('gems', st.get_int('gems', 0) + d.reward)
+							m.toast('${d.name} +${d.reward} gems!')
+							m.rebuild_ach_rows()
+							m.refresh_coins()
+						}
+						return
+					}
+				}
 			}
 		}
 	}

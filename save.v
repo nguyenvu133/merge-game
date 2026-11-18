@@ -67,6 +67,16 @@ fn build_save_json(st &core.Store, units []&core.Node) string {
 	sb.write_string(st.get_int('current_level', 1).str())
 	sb.write_string(',"sound":')
 	sb.write_string(if st.get_bool('sound', true) { 'true' } else { 'false' })
+	sb.write_string(',"stat_kills":')
+	sb.write_string(st.get_int('stat_kills', 0).str())
+	sb.write_string(',"stat_merges":')
+	sb.write_string(st.get_int('stat_merges', 0).str())
+	sb.write_string(',"stat_wins":')
+	sb.write_string(st.get_int('stat_wins', 0).str())
+	sb.write_string(',"stat_bosses":')
+	sb.write_string(st.get_int('stat_bosses', 0).str())
+	sb.write_string(',"max_level":')
+	sb.write_string(st.get_int('max_level', 1).str())
 	sb.write_string(',"team":"')
 	for u in units {
 		if mut m := u.get_component[Monster]() {
@@ -121,5 +131,10 @@ fn apply_save(mut st core.Store, s string) bool {
 	st.set_int('unlocked', json_get_int(s, 'unlocked', 1))
 	st.set_int('current_level', json_get_int(s, 'current_level', 1))
 	st.set_bool('sound', json_get_bool(s, 'sound', true))
+	st.set_int('stat_kills', json_get_int(s, 'stat_kills', 0))
+	st.set_int('stat_merges', json_get_int(s, 'stat_merges', 0))
+	st.set_int('stat_wins', json_get_int(s, 'stat_wins', 0))
+	st.set_int('stat_bosses', json_get_int(s, 'stat_bosses', 0))
+	st.set_int('max_level', json_get_int(s, 'max_level', 1))
 	return true
 }

@@ -33,6 +33,10 @@ pub mut:
 	// drag hint state
 	drag_merge_ok bool
 	drag_cell_ok  bool
+	// merge combo chain: consecutive merges within 3s build a combo counter
+	// that grants bonus coins (like the reference game's merge chains)
+	combo      int
+	combo_left f32
 }
 
 fn (mut b MergeBoard) start() {
@@ -131,12 +135,14 @@ fn (mut b MergeBoard) highlight_ghost(cell int) {
 }
 
 fn (mut b MergeBoard) build_cards() {
-	// 4 buy cards along the bottom (fire/water/earth/wind), centered.
+	// 4 buy cards (fire/water/earth/wind), centered — the classic merge shop.
+	// lightning/ice stay available via team/save & fusion, like the reference.
 	mut root := b.scene().root
 	els := ['fire', 'water', 'earth', 'wind']
 	cx := [f32(159), 233, 307, 381] // 4 cards, symmetric around x=270
 	for i in 0 .. 4 {
 		pos := core.vec2(cx[i], 880)
+		cost := b.element_cost(els[i])
 		mut card := core.Node.new('Card${i}')
 			.with(&render.UITransform{ size: core.vec2(64, 96), anchor: core.vec2(0.5, 0.5) })
 			.with(&render.Panel{ color: core.rgba(90, 60, 30, 235), radius: 10, border_width: 2, border_color: core.rgba(220, 180, 90, 255) })
@@ -156,8 +162,8 @@ fn (mut b MergeBoard) build_cards() {
 
 		mut price := core.Node.new('Price')
 			.with(&render.Label{
-				text:  '${b.card_cost}'
-				size:  17
+				text:  '${cost}'
+				size:  16
 				align: 'center'
 				color: core.rgba(255, 220, 90, 255)
 			})
@@ -173,6 +179,39 @@ fn (mut b MergeBoard) build_cards() {
 		coin.position = core.vec2(-26, 38)
 		coin.z_index = 19
 		card.add_child(mut coin)
+	}
+}
+
+// element_cost — the reference game raises prices as you own more of an element:
+// base 100 coins, +25 per unit of that element already on the board.
+fn (b &MergeBoard) element_cost(element string) int {
+	mut owned := 0
+	for u in b.units {
+		if u == unsafe { nil } {
+			continue
+		}
+		if mut m := u.get_component[Monster]() {
+			if m.side == 0 && m.alive && m.element == element {
+				owned++
+			}
+		}
+	}
+	return 100 + owned * 25
+}
+
+// refresh_card_labels — keep the 4 card price labels in sync (prices rise as
+// you buy more of an element, exactly like the reference game's economy).
+fn (mut b MergeBoard) refresh_card_labels() {
+	els := ['fire', 'water', 'earth', 'wind']
+	mut root := b.scene().root
+	for i in 0 .. 4 {
+		if mut card := root.find('Card${i}') {
+			if mut p := card.find('Price') {
+				if mut l := p.get_component[render.Label]() {
+					l.text = '${b.element_cost(els[i])}'
+				}
+			}
+		}
 	}
 }
 
@@ -296,6 +335,12 @@ fn (b &MergeBoard) nearest_free_cell(at core.Vec2) int {
 fn (mut b MergeBoard) update(dt f32) {
 	if b.battle != unsafe { nil } && b.battle.over() {
 		return
+	}
+	if b.combo_left > 0 {
+		b.combo_left -= dt
+		if b.combo_left <= 0 {
+			b.combo = 0
+		}
 	}
 	in_ := b.input()
 	if b.battle != unsafe { nil } && b.battle.fighting() {
@@ -452,14 +497,17 @@ fn (mut b MergeBoard) update(dt f32) {
 fn (mut b MergeBoard) buy(element string) {
 	mut st := b.scene().store
 	coins := st.get_int('coins', 200)
-	if coins < b.card_cost {
+	cost := b.element_cost(element)
+	if coins < cost {
 		b.toast('Not enough coins!')
 		return
 	}
-	st.set_int('coins', coins - b.card_cost)
+	st.set_int('coins', coins - cost)
 	b.refresh_coin_label()
+	b.refresh_card_labels()
 	sfx_play_scene(b.scene(), 'audio/buy.wav')
 	b.place_new(element)
+	b.reapply_all()
 	auto_save_team(mut st, b.units)
 }
 
@@ -500,9 +548,11 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 					b.remove_unit(mut o)
 					sfx_play_scene(b.scene(), 'audio/merge.wav')
 					particle_burst_tag(mut b.field, o.position, 'merge')
+					b.stat_merge()
 					mut st := b.scene().store
 				auto_save_team(mut st, b.units)
 					mut n := b.spawn_unit(el, lvl, -1)
+					b.reapply_all()
 					cell := b.nearest_free_cell(o.position)
 					n.position = b.cells[cell]
 					if mut m := n.get_component[Monster]() {
@@ -525,9 +575,11 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 						b.remove_unit(mut o)
 						sfx_play_scene(b.scene(), 'audio/merge.wav')
 						particle_burst_tag(mut b.field, o.position, 'merge')
+						b.stat_merge()
 						mut st := b.scene().store
 					auto_save_team(mut st, b.units)
 						mut n := b.spawn_unit(hb, sm.level, -1)
+						b.reapply_all()
 						cell := b.nearest_free_cell(o.position)
 						n.position = b.cells[cell]
 						if mut m := n.get_component[Monster]() {
@@ -564,6 +616,22 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 		u.position = b.cells[cell]
 	} else {
 		u.position = sm.home
+	}
+}
+
+// stat_merge — a merge/fusion happened: bump the save stat and the combo chain.
+// Consecutive merges within 3 seconds build a combo; every 3rd+ chain step
+// grants bonus coins (merge-chain rewards, like the reference game).
+fn (mut b MergeBoard) stat_merge() {
+	mut st := b.scene().store
+	st.set_int('stat_merges', st.get_int('stat_merges', 0) + 1)
+	b.combo++
+	b.combo_left = 3.0
+	if b.combo >= 3 {
+		bonus := b.combo * 5
+		b.add_coins(bonus)
+		particle_burst_tag(mut b.field, core.vec2(270, 640), 'combo')
+		b.toast('COMBO x${b.combo}! +${bonus} coins')
 	}
 }
 
@@ -656,12 +724,14 @@ fn (mut b MergeBoard) show_unit_info(idx int) {
 	}
 	if mut l := b.info.find('InfoNext') {
 		if mut ll := l.get_component[render.Label]() {
+			sy := b.synergy_mult(m.element)
+			sy_txt := if sy > 1.0 { '  SYNERGY +${int((sy - 1.0) * 100)}%' } else { '' }
 			if m.level >= 10 {
-				ll.text = 'MAX LEVEL - merge for bonus coins'
+				ll.text = 'MAX LEVEL - merge for bonus coins${sy_txt}'
 			} else {
 				ed := element_data(m.element)
 				mult := level_mult(m.level + 1)
-				ll.text = 'NEXT L${m.level + 1}: HP ${int(ed.hp * mult)}  DMG ${int(ed.dmg * mult)}'
+				ll.text = 'NEXT L${m.level + 1}: HP ${int(ed.hp * mult)}  DMG ${int(ed.dmg * mult)}${sy_txt}'
 			}
 		}
 	}
@@ -706,8 +776,20 @@ fn (mut b MergeBoard) apply_attrs(mut m &Monster) {
 	ed := element_data(m.element)
 	mult := level_mult(m.level)
 	ratio := if m.max_hp > 0 { m.hp / m.max_hp } else { f32(1) }
-	hp := ed.hp * mult * (1.0 + 0.1 * f32(b.attr_lv('attr_hp')))
-	dmg := ed.dmg * mult * (1.0 + 0.1 * f32(b.attr_lv('attr_dmg')))
+	// element synergy: 3+ units of the same element on the board buff each
+	// other (+8% HP & DMG per extra unit beyond 2, capped at +40%) — the
+	// reference game rewards mono-element armies.
+	same := b.synergy_count(m.element)
+	mut sy := f32(1.0)
+	if same >= 3 {
+		mut bonus := f32(same - 2) * 0.08
+		if bonus > 0.4 {
+			bonus = 0.4
+		}
+		sy = 1.0 + bonus
+	}
+	hp := ed.hp * mult * sy * (1.0 + 0.1 * f32(b.attr_lv('attr_hp')))
+	dmg := ed.dmg * mult * sy * (1.0 + 0.1 * f32(b.attr_lv('attr_dmg')))
 	mut spd := ed.spd * (1.0 - 0.04 * f32(b.attr_lv('attr_spd')))
 	if spd < 0.4 {
 		spd = 0.4
@@ -722,6 +804,50 @@ fn (mut b MergeBoard) apply_attrs(mut m &Monster) {
 	m.hp = m.max_hp * ratio
 }
 
+// synergy_count — how many alive player units share this element right now.
+fn (b &MergeBoard) synergy_count(element string) int {
+	mut n := 0
+	for u in b.units {
+		if u == unsafe { nil } {
+			continue
+		}
+		if mut m := u.get_component[Monster]() {
+			if m.side == 0 && m.alive && m.element == element {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// synergy_mult — the current HP/DMG multiplier this element gets from synergy.
+fn (b &MergeBoard) synergy_mult(element string) f32 {
+	same := b.synergy_count(element)
+	if same < 3 {
+		return 1.0
+	}
+	mut bonus := f32(same - 2) * 0.08
+	if bonus > 0.4 {
+		bonus = 0.4
+	}
+	return 1.0 + bonus
+}
+
+// reapply_all — after any board change (buy/sell/merge/fusion/level-up) the
+// synergy counts change, so every player unit must be re-derived.
+fn (mut b MergeBoard) reapply_all() {
+	for mut u in b.units {
+		if u == unsafe { nil } {
+			continue
+		}
+		if mut m := u.get_component[Monster]() {
+			if m.side == 0 && m.alive {
+				b.apply_attrs(mut m)
+			}
+		}
+	}
+}
+
 // level_up_unit — gem upgrade: +1 level, re-stats, new art, tag update.
 fn (mut b MergeBoard) level_up_unit(mut u &core.Node) bool {
 	mut m := u.get_component[Monster]() or { return false }
@@ -734,6 +860,7 @@ fn (mut b MergeBoard) level_up_unit(mut u &core.Node) bool {
 		sp.texture = monster_tex(m.element, m.level)
 	}
 	set_level_tag(u, m.level)
+	b.reapply_all()
 	return true
 }
 
@@ -747,16 +874,7 @@ fn (mut b MergeBoard) upgrade_attr(key string, cost int) bool {
 	if lv < 10 {
 		st.set_int(key, lv + 1)
 	}
-	for mut u in b.units {
-		if u == unsafe { nil } {
-			continue
-		}
-		if mut m := u.get_component[Monster]() {
-			if m.side == 0 && m.alive {
-				b.apply_attrs(mut m)
-			}
-		}
-	}
+	b.reapply_all()
 	return true
 }
 
@@ -768,6 +886,7 @@ fn (mut b MergeBoard) sell_unit(mut u &core.Node) int {
 	}
 	refund := 50 + m.level * 10
 	b.remove_unit(mut u)
+	b.reapply_all()
 	mut st := b.scene().store
 	st.set_int('coins', st.get_int('coins', 200) + refund)
 	auto_save_team(mut st, b.units)
@@ -777,6 +896,7 @@ fn (mut b MergeBoard) sell_unit(mut u &core.Node) int {
 
 // hybrid_of — cross-element fusion: two DIFFERENT elements of the SAME level
 // fuse into a unique warrior (like the reference game). '' = no combo.
+// FULL TABLE: every pair of the 6 base elements (15 hybrids).
 fn hybrid_of(e1 string, e2 string) string {
 	a := if e1 < e2 { e1 } else { e2 }
 	b := if e1 < e2 { e2 } else { e1 }
@@ -787,6 +907,15 @@ fn hybrid_of(e1 string, e2 string) string {
 		'earth_water' { 'mud' }
 		'water_wind' { 'mist' }
 		'earth_wind' { 'dust' }
+		'fire_lightning' { 'plasma' }
+		'fire_ice' { 'frostfire' }
+		'lightning_water' { 'thunder' }
+		'ice_water' { 'glacier' }
+		'earth_lightning' { 'crystal' }
+		'earth_ice' { 'permafrost' }
+		'lightning_wind' { 'storm' }
+		'ice_wind' { 'blizzard' }
+		'ice_lightning' { 'hail' }
 		else { '' }
 	}
 }
@@ -837,9 +966,10 @@ fn (mut b MergeBoard) add_coins(v int) {
 fn (mut b MergeBoard) refresh_coin_label() {
 	if mut c := b.scene().root.find('CoinLabel') {
 		if mut l := c.get_component[render.Label]() {
-			l.text = 'Coins: ${b.scene().store.get_int('coins', 200)}'
+			l.text = 'Coins: ${fmt_num(b.scene().store.get_int('coins', 200))}'
 		}
 	}
+	b.refresh_card_labels()
 	b.refresh_power_label()
 }
 
@@ -861,9 +991,22 @@ fn (mut b MergeBoard) refresh_power_label() {
 	}
 	if mut c := b.scene().root.find('PowerLabel') {
 		if mut l := c.get_component[render.Label]() {
-			l.text = 'Power: ${hp + dmg}'
+			l.text = 'Power: ${fmt_num(hp + dmg)}'
 		}
 	}
+}
+
+// fmt_num — compact big-number formatting for HUD labels (1.2K / 3.4M).
+fn fmt_num(n int) string {
+	if n >= 1000000 {
+		mut m := f64(n) / 1000000.0
+		return '${m:.1f}M'
+	}
+	if n >= 1000 {
+		mut k := f64(n) / 1000.0
+		return '${k:.1f}K'
+	}
+	return n.str()
 }
 
 fn (mut b MergeBoard) toast(text string) {
@@ -894,10 +1037,14 @@ pub mut:
 	battle_on bool // the battle banner was tapped
 	board   &MergeBoard = unsafe { nil }
 	banner_timer f32 @[hide]
+	// perfect-wave tracking: player units lost during the CURRENT wave
+	lost_wave int
+	// battle speed (1x / 2x toggle, like the reference game's fast-forward)
+	speed f32 = 1.0
 }
 
 pub fn (mut c BattleController) start() {
-	init_game_data()
+	// game data is a const — no init needed
 	mut sroot := c.scene().root
 	setup_sfx(mut sroot)
 	ensure_music(mut sroot)
@@ -993,6 +1140,7 @@ fn (mut c BattleController) update(dt f32) {
 	if c.board == unsafe { nil } || !c.board.ready {
 		return // the board and its start units must exist first
 	}
+	d := dt * c.speed // 2x fast-forward toggle speeds up the whole battle
 	if c.state != 'fighting' {
 		// idle: units walk back to their cells, and the banner reappears (with a short delay)
 		if c.state == 'idle' && c.board != unsafe { nil } {
@@ -1028,7 +1176,7 @@ fn (mut c BattleController) update(dt f32) {
 				continue
 			}
 			// status ticks (burn/poison/regen) + stun/freeze timers
-			if m.tick_status(dt) {
+			if m.tick_status(d) {
 				kill_unit(c, mut e, mut m)
 				continue
 			}
@@ -1066,9 +1214,9 @@ fn (mut c BattleController) update(dt f32) {
 			}
 			if dist > stop_at {
 				dir := (target.position - e.position).normalized()
-				e.position = e.position + dir.mul(m.m_speed(m.speed) * dt)
+				e.position = e.position + dir.mul(m.m_speed(m.speed) * d)
 			} else {
-				m.cooldown -= dt
+				m.cooldown -= d
 				if m.cooldown <= 0 {
 					m.cooldown = m.atk_speed
 					dmgt := m.damage * m.m_damage_mult()
@@ -1102,7 +1250,7 @@ fn (mut c BattleController) update(dt f32) {
 	mut players := c.board.player_units()
 	for mut u in players {
 		if mut m := u.get_component[Monster]() {
-			if m.tick_status(dt) {
+			if m.tick_status(d) {
 				kill_unit(c, mut u, mut m)
 				continue
 			}
@@ -1118,9 +1266,9 @@ fn (mut c BattleController) update(dt f32) {
 			dist := u.position.distance(target.position)
 			if dist > stop_at {
 				dir := (target.position - u.position).normalized()
-				u.position = u.position + dir.mul(m.m_speed(m.speed) * dt)
+				u.position = u.position + dir.mul(m.m_speed(m.speed) * d)
 			} else {
-				m.cooldown -= dt
+				m.cooldown -= d
 				if m.cooldown <= 0 {
 					m.cooldown = m.atk_speed
 					dmgt := m.damage * m.m_damage_mult()
@@ -1140,6 +1288,19 @@ fn (mut c BattleController) update(dt f32) {
 	if c.enemies.len == 0 && c.wave < def.waves.len && c.state == 'fighting' {
 		c.state = 'idle'
 		c.banner_timer = 1.2
+		// PERFECT wave: no player unit fell this wave -> bonus coins
+		if c.lost_wave == 0 {
+			bonus := 10 + c.level * 2
+			mut st := c.scene().store
+			st.set_int('coins', st.get_int('coins', 200) + bonus)
+			if c.board != unsafe { nil } {
+				c.board.refresh_coin_label()
+				c.board.toast('PERFECT WAVE! +${bonus} coins')
+			}
+			mut proot := c.scene().root
+			particle_burst_tag(mut proot, core.vec2(270, 500), 'combo')
+		}
+		c.lost_wave = 0
 	}
 	// win / lose
 	if c.board.player_units().len == 0 {
@@ -1163,6 +1324,23 @@ fn (mut u BattleUI) show_banner() {
 	}
 	if mut cb := u.scene().root.find('ChestBtn') {
 		cb.active = true // a free chest every wave
+	}
+}
+
+// hide_battle_buttons — battle is over: the banner and the between-wave buttons
+// (UPGRADE / TEAM / CHEST) must all disappear so only the overlay remains.
+fn (mut u BattleUI) hide_battle_buttons() {
+	if u.banner != unsafe { nil } {
+		u.banner.active = false
+	}
+	if mut ub := u.scene().root.find('UpgradeBtn') {
+		ub.active = false
+	}
+	if mut tb := u.scene().root.find('TeamBtn') {
+		tb.active = false
+	}
+	if mut cb := u.scene().root.find('ChestBtn') {
+		cb.active = false
 	}
 }
 
@@ -1353,9 +1531,17 @@ fn kill_unit(c &BattleController, mut target &core.Node, mut m &Monster) {
 	if m.side == 1 {
 		mut cc := unsafe { c }
 		mut st := cc.scene().store
-		st.set_int('coins', st.get_int('coins', 200) + int(f32(m.kill_coins) * coin_mult(st)))
+		base_coins := int(f32(m.kill_coins) * coin_mult(st))
+		coins := if m.is_elite { base_coins * 3 } else { base_coins }
+		st.set_int('coins', st.get_int('coins', 200) + coins)
+		st.set_int('stat_kills', st.get_int('stat_kills', 0) + 1)
 		if m.is_boss {
 			st.set_int('gems', st.get_int('gems', 0) + 5) // boss kill: +5 gems
+			st.set_int('stat_bosses', st.get_int('stat_bosses', 0) + 1)
+		}
+		if m.is_elite {
+			mut eroot := cc.scene().root
+			particle_burst_tag(mut eroot, target.position, 'elite')
 		}
 		if cc.board != unsafe { nil } {
 			mut b := cc.board
@@ -1370,6 +1556,7 @@ fn kill_unit(c &BattleController, mut target &core.Node, mut m &Monster) {
 		}
 	} else {
 		mut cc := unsafe { c }
+		cc.lost_wave++
 		if cc.board != unsafe { nil } {
 			mut b := cc.board
 			b.remove_unit(mut target)
@@ -1464,8 +1651,14 @@ fn (mut c BattleController) spawn_wave() {
 	w := def.waves[c.wave]
 	c.wave++
 	c.state = 'fighting'
+	c.lost_wave = 0
 	cols := [f32(94), 188, 282, 376, 470]
 	mut idx := 0
+	// elite enemies: golden, tankier, 3x coins — chance grows with level (8-25%)
+	mut elite_chance := f32(0.08) + f32(c.level) * 0.0017
+	if elite_chance > 0.25 {
+		elite_chance = 0.25
+	}
 	for _ in 0 .. w.count {
 		row := (idx / 5) % 4
 		col := idx % 5
@@ -1475,9 +1668,10 @@ fn (mut c BattleController) spawn_wave() {
 		}
 		mut root := c.scene().root
 		boss := w.boss
+		elite := !boss && rand.f32() < elite_chance
 		bdef := if boss { boss_for_level(c.level) } else { BossData{} }
 		tex := if boss { bdef.tex } else { enemy_tex(w.mtype) }
-		sz := if boss {
+		mut sz := if boss {
 			es := enemy_size(5)
 			core.vec2(es.x * bdef.size_scale, es.y * bdef.size_scale)
 		} else {
@@ -1487,8 +1681,8 @@ fn (mut c BattleController) spawn_wave() {
 		if boss {
 			// boss uses Velo's Kine2D component (rig converted from the .kine)
 			n = n.with(&kine2d.Kine2D{
-				data:        assets.ref[assets.TextAsset]('Kine/pixelforge-nhan-vat-1-auto-rig_v4.skel.json')
-				atlas:       assets.ref[assets.TextAsset]('Kine/pixelforge-nhan-vat-1-auto-rig_v4.atlas.json')
+				data:        assets.ref[assets.TextAsset]('Kine/pixelforge-nguoi-da.skel.json')
+				atlas:       assets.ref[assets.TextAsset]('Kine/pixelforge-nguoi-da.atlas.json')
 				animation:   'Move'
 				looping:     true
 				playing:     true
@@ -1501,6 +1695,15 @@ fn (mut c BattleController) spawn_wave() {
 				size:    sz
 				color:   enemy_tint(w.mtype)
 			})
+		}
+		if elite {
+			if mut sp := n.get_component[render.Sprite]() {
+				sp.color = core.rgba(255, 215, 80, 255) // golden elite
+			}
+			sz = core.vec2(sz.x * 1.2, sz.y * 1.2)
+			if mut sp := n.get_component[render.Sprite]() {
+				sp.size = sz
+			}
 		}
 		n.position = pos
 		n.z_index = 4
@@ -1523,6 +1726,10 @@ fn (mut c BattleController) spawn_wave() {
 			mspd = bdef.spd
 			mrng = 320
 		}
+		if elite {
+			mhp *= 1.6
+			mdmg *= 1.35
+		}
 		n.add_component(&Monster{
 			element:   'enemy'
 			level:     w.level
@@ -1535,6 +1742,7 @@ fn (mut c BattleController) spawn_wave() {
 			ranged:    boss || enemy_ranged(w.mtype)
 			range:     mrng
 			is_boss:   boss
+			is_elite:  elite
 			boss_id:   bid
 			skill:     if boss { bdef.skill } else { '' }
 		})
@@ -1547,6 +1755,14 @@ fn (mut c BattleController) spawn_wave() {
 					l.text = bdef.name
 					l.color = core.rgba(255, 80, 80, 255)
 					l.size = 22
+				}
+			}
+		} else if elite {
+			if mut tag := n.find('LvTag') {
+				if mut l := tag.get_component[render.Label]() {
+					l.text = 'ELITE'
+					l.color = core.rgba(255, 215, 80, 255)
+					l.size = 16
 				}
 			}
 		} else {
@@ -1616,8 +1832,12 @@ fn (mut c BattleController) win() {
 	reward := def.reward
 	mut st := c.scene().store
 	st.set_int('coins', st.get_int('coins', 200) + reward)
+	st.set_int('stat_wins', st.get_int('stat_wins', 0) + 1)
 	if c.level >= st.get_int('unlocked', 1) {
 		st.set_int('unlocked', c.level + 1)
+	}
+	if c.level >= st.get_int('max_level', 1) {
+		st.set_int('max_level', c.level)
 	}
 	if c.board != unsafe { nil } {
 		c.board.refresh_coin_label()
@@ -1625,6 +1845,7 @@ fn (mut c BattleController) win() {
 	mut root := c.scene().root
 	particle_burst_tag(mut root, core.vec2(270, 400), 'win')
 	if mut ui := c.scene().root.get_component[BattleUI]() {
+		ui.hide_battle_buttons()
 		ui.show_victory(reward)
 	}
 }
@@ -1636,6 +1857,7 @@ fn (mut c BattleController) lose() {
 	c.state = 'lost'
 	sfx_play_scene(c.scene(), 'audio/lose.wav')
 	if mut ui := c.scene().root.get_component[BattleUI]() {
+		ui.hide_battle_buttons()
 		ui.show_fail()
 	}
 }
@@ -1679,6 +1901,27 @@ fn (mut u BattleUI) build_back() {
 	back.position = core.vec2(38, 55)
 	back.z_index = 25
 	root.add_child(mut back)
+
+	// 2x battle speed toggle (fast-forward like the reference game)
+	mut spd := core.Node.new('SpeedBtn')
+		.with(&render.Sprite{
+			texture: assets.ref[assets.Texture]('ui/button0.png')
+			size:    core.vec2(64, 34)
+		})
+		.with(&render.Button{})
+	spd.position = core.vec2(96, 55)
+	spd.z_index = 25
+	root.add_child(mut spd)
+	mut sl := core.Node.new('SpeedLabel')
+		.with(&render.Label{
+			text:  'x1'
+			size:  15
+			align: 'center'
+			color: core.rgba(255, 255, 255, 255)
+		})
+	sl.position = core.vec2(0, 0)
+	sl.z_index = 26
+	spd.add_child(mut sl)
 }
 
 fn (mut u BattleUI) build_banner() {
@@ -2036,6 +2279,17 @@ fn (mut u BattleUI) update(dt f32) {
 				}
 			}
 		}
+		if mut c := root.find('NextBtn') {
+			if mut bt := c.get_component[render.Button]() {
+				if bt.clicked {
+					// straight into the next level — endless past level 100
+					mut st := sc.store
+					st.set_int('current_level', u.level + 1)
+					sc.change_scene('scenes/battle.scene', fade: 0.3)
+					return
+				}
+			}
+		}
 		if mut c := root.find('RetryBtn') {
 			if mut bt := c.get_component[render.Button]() {
 				if bt.clicked {
@@ -2050,6 +2304,23 @@ fn (mut u BattleUI) update(dt f32) {
 					sc.change_scene('scenes/map.scene', fade: 0.3)
 					return
 				}
+			}
+		}
+	}
+	// 2x speed toggle
+	if mut spd := root.find('SpeedBtn') {
+		if mut bt := spd.get_component[render.Button]() {
+			if bt.clicked {
+				if mut c := root.get_component[BattleController]() {
+					c.speed = if c.speed >= 2.0 { f32(1.0) } else { f32(2.0) }
+					if mut sl := spd.find('SpeedLabel') {
+						if mut ll := sl.get_component[render.Label]() {
+							ll.text = if c.speed >= 2.0 { 'x2' } else { 'x1' }
+						}
+					}
+					sfx_play_scene(sc, 'audio/click.wav')
+				}
+				return
 			}
 		}
 	}
@@ -2653,6 +2924,23 @@ fn (mut u BattleUI) build_overlays() {
 	ctl.z_index = 53
 	cont.add_child(mut ctl)
 
+	// NEXT — jump straight into the following level (endless beyond level 100)
+	mut nxt := core.Node.new('NextBtn')
+		.with(&render.Sprite{
+			texture: assets.ref[assets.Texture]('ui/button0.png')
+			size:    core.vec2(188, 40)
+		})
+		.with(&render.Button{})
+	nxt.position = core.vec2(270, 534)
+	nxt.z_index = 52
+	nxt.active = false
+	root.add_child(mut nxt)
+	mut ntl := core.Node.new('NextLabel')
+		.with(&render.Label{ text: 'NEXT ▶', size: 16, align: 'center', color: core.rgba(255, 255, 255, 255) })
+	ntl.position = core.vec2(0, 0)
+	ntl.z_index = 53
+	nxt.add_child(mut ntl)
+
 	mut f := core.Node.new('FailPanel')
 		.with(&render.Sprite{
 			texture: assets.ref[assets.Texture]('ui/fail.png')
@@ -2734,6 +3022,9 @@ fn (mut u BattleUI) show_victory(reward int) {
 		}
 	}
 	if mut c := u.scene().root.find('ContinueBtn') {
+		c.active = true
+	}
+	if mut c := u.scene().root.find('NextBtn') {
 		c.active = true
 	}
 }
