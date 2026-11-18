@@ -165,6 +165,7 @@ fn (mut s SettingsUI) update(dt f32) {
 		if mut btn := root.find('SettingsBtn') {
 			if mut bt := btn.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					s.open = true
 					s.panel.active = true
 					if mut t := root.find('SettingsTitle') {
@@ -198,6 +199,7 @@ fn (mut s SettingsUI) update(dt f32) {
 	if mut c := root.find('SettingsClose') {
 		if mut bt := c.get_component[render.Button]() {
 			if bt.clicked {
+				bt.clicked = false
 				s.close()
 				return
 			}
@@ -206,6 +208,7 @@ fn (mut s SettingsUI) update(dt f32) {
 	if mut b := root.find('SoundBtn') {
 		if mut bt := b.get_component[render.Button]() {
 			if bt.clicked {
+				bt.clicked = false
 				mut st := sc.store
 				on := !st.get_bool('sound', true)
 				st.set_bool('sound', on)
@@ -218,6 +221,7 @@ fn (mut s SettingsUI) update(dt f32) {
 	if mut b := root.find('ResetBtn') {
 		if mut bt := b.get_component[render.Button]() {
 			if bt.clicked {
+				bt.clicked = false
 				mut st := sc.store
 				st.delete('coins')
 				st.delete('unlocked')
@@ -242,6 +246,7 @@ fn (mut s SettingsUI) update(dt f32) {
 	if mut b := root.find('SaveBtn') {
 		if mut bt := b.get_component[render.Button]() {
 			if bt.clicked {
+				bt.clicked = false
 				mut st := sc.store
 				board := sc.root.get_component[MergeBoard]() or { unsafe { nil } }
 				mut units := []&core.Node{}
@@ -263,6 +268,7 @@ fn (mut s SettingsUI) update(dt f32) {
 	if mut b := root.find('LoadBtn') {
 		if mut bt := b.get_component[render.Button]() {
 			if bt.clicked {
+				bt.clicked = false
 				mut st := sc.store
 				if !save_json_exists(st) {
 					if mut t := root.find('Toast') {

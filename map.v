@@ -15,6 +15,7 @@ pub mut:
 	unlocked int = 1
 	built    bool
 	ach_open bool
+	ach_tab  int
 	ach_built bool @[hide]
 }
 
@@ -108,6 +109,17 @@ fn (mut m MapScreen) build_hud() {
 	gems.z_index = 10
 	root.add_child(mut gems)
 
+	mut stars := core.Node.new('StarLabel')
+		.with(&render.Label{
+			text:  'Stars: ${m.scene().store.get_int('total_stars', 0)}'
+			size:  18
+			align: 'center'
+			color: core.rgba(255, 215, 90, 255)
+		})
+	stars.position = core.vec2(270, 176)
+	stars.z_index = 10
+	root.add_child(mut stars)
+
 	mut book := core.Node.new('BookBtn')
 		.with(&render.UITransform{ size: core.vec2(64, 34), anchor: core.vec2(0.5, 0.5) })
 		.with(&render.Panel{ color: core.rgba(60, 110, 170, 255), radius: 8 })
@@ -173,7 +185,25 @@ fn achievement_defs() []AchievementDef {
 		AchievementDef{'b25', 'Boss Slayer', 'Defeat 25 bosses', 'stat_bosses', 25, 25},
 		AchievementDef{'l25', 'Explorer', 'Reach level 25', 'max_level', 25, 10},
 		AchievementDef{'l50', 'Hero', 'Reach level 50', 'max_level', 50, 20},
-		AchievementDef{'l100', 'Endless Legend', 'Reach level 100', 'max_level', 100, 30}]
+		AchievementDef{'l100', 'Endless Legend', 'Reach level 100', 'max_level', 100, 30},
+		AchievementDef{'s25', 'Star Collector', 'Earn 25 stars', 'total_stars', 25, 10},
+		AchievementDef{'s75', 'Star General', 'Earn 75 stars', 'total_stars', 75, 25},
+		AchievementDef{'s200', 'Perfectionist', 'Earn 200 stars', 'total_stars', 200, 50},
+		AchievementDef{'c10', 'Element Master', 'Collect 10 elements', 'coll_count', 10, 20},
+		AchievementDef{'c21', 'Elemental God', 'Collect all 21 elements', 'coll_count', 21, 60}]
+}
+
+// coll_count — how many distinct elements the player has ever owned.
+fn coll_count(st &core.Store) int {
+	els := ['fire', 'water', 'earth', 'wind', 'lightning', 'ice', 'steam', 'lava', 'ember', 'mud', 'mist', 'dust',
+		'plasma', 'frostfire', 'thunder', 'glacier', 'crystal', 'permafrost', 'storm', 'blizzard', 'hail']
+	mut n := 0
+	for e in els {
+		if st.get_int('seen_${e}', 0) == 1 {
+			n++
+		}
+	}
+	return n
 }
 
 fn (mut m MapScreen) build_achievements() {
@@ -198,6 +228,35 @@ fn (mut m MapScreen) build_achievements() {
 	g.z_index = 61
 	panel.add_child(mut g)
 
+	// two tabs — BOOK (achievements) / COLLECTION (elements owned), root children for web clicks
+	mut tb1 := core.Node.new('BookTab')
+		.with(&render.UITransform{ size: core.vec2(150, 34), anchor: core.vec2(0.5, 0.5) })
+		.with(&render.Panel{ color: core.rgba(60, 110, 170, 255), radius: 8 })
+		.with(&render.Button{})
+	tb1.position = core.vec2(185, 175)
+	tb1.z_index = 62
+	tb1.active = false
+	root.add_child(mut tb1)
+	mut lb1 := core.Node.new('BookTabLabel')
+		.with(&render.Label{ text: 'BOOK', size: 15, align: 'center', color: core.rgba(255, 255, 255, 255) })
+	lb1.position = core.vec2(0, 0)
+	lb1.z_index = 63
+	tb1.add_child(mut lb1)
+
+	mut tb2 := core.Node.new('CollTab')
+		.with(&render.UITransform{ size: core.vec2(150, 34), anchor: core.vec2(0.5, 0.5) })
+		.with(&render.Panel{ color: core.rgba(120, 80, 40, 255), radius: 8 })
+		.with(&render.Button{})
+	tb2.position = core.vec2(355, 175)
+	tb2.z_index = 62
+	tb2.active = false
+	root.add_child(mut tb2)
+	mut lb2 := core.Node.new('CollTabLabel')
+		.with(&render.Label{ text: 'COLLECTION', size: 15, align: 'center', color: core.rgba(255, 255, 255, 255) })
+	lb2.position = core.vec2(0, 0)
+	lb2.z_index = 63
+	tb2.add_child(mut lb2)
+
 	mut close := core.Node.new('AchClose')
 		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/close.png'), size: core.vec2(36, 39) })
 		.with(&render.Button{})
@@ -209,11 +268,60 @@ fn (mut m MapScreen) build_achievements() {
 	m.ach_built = true
 }
 
+// rebuild_coll_rows — the element collection: every element you have ever owned,
+// with its icon + current best level (tracked in the store as seen_<elem>/elem_lv_<elem>).
+fn (mut m MapScreen) rebuild_coll_rows() {
+	mut root := m.scene().root
+	els := ['fire', 'water', 'earth', 'wind', 'lightning', 'ice', 'steam', 'lava', 'ember', 'mud', 'mist', 'dust',
+		'plasma', 'frostfire', 'thunder', 'glacier', 'crystal', 'permafrost', 'storm', 'blizzard', 'hail']
+	mut st := m.scene().store
+	mut y := f32(218)
+	for i, e in els {
+		mut row := core.Node.new('CRow${i}')
+		row.position = core.vec2(0, 0)
+		row.z_index = 62
+		root.add_child(mut row)
+		owned := st.get_int('seen_${e}', 0) == 1
+		lv := st.get_int('elem_lv_${e}', 0)
+		mut ic := core.Node.new('CIcon${i}')
+			.with(&render.Sprite{
+				texture: monster_tex(e, 1)
+				size:    core.vec2(36, 44)
+			})
+		ic.position = core.vec2(140, y)
+		ic.z_index = 63
+		ic.active = owned
+		root.add_child(mut ic)
+		mut nm := core.Node.new('CName${i}')
+			.with(&render.Label{
+				text:  '${e}${if owned { if lv > 0 { '  L${lv}' } else { '' } } else { '  ???' }}'
+				size:  15
+				align: 'left'
+				color: if owned { core.rgba(230, 235, 255, 255) } else { core.rgba(120, 120, 140, 255) }
+			})
+		nm.position = core.vec2(180, y)
+		nm.z_index = 63
+		root.add_child(mut nm)
+		y += 24
+	}
+}
+
+// track_owned — record that a player unit of `element` was created (spawn/merge/fusion).
+fn track_owned(mut st core.Store, element string, level int) {
+	if element == '' || element == 'enemy' {
+		return
+	}
+	st.set_int('seen_${element}', 1)
+	if level > st.get_int('elem_lv_${element}', 0) {
+		st.set_int('elem_lv_${element}', level)
+	}
+}
+
 // rebuild_ach_rows — shows one row per achievement with a CLAIM button when
 // its target is reached (buttons are DIRECT root children, web-safe).
 fn (mut m MapScreen) rebuild_ach_rows() {
 	mut root := m.scene().root
-	for i in 0 .. 12 {
+	for i in 0 .. 17 {
 		if mut r := root.find('ARow${i}') {
 			r.destroy()
 		}
@@ -235,7 +343,10 @@ fn (mut m MapScreen) rebuild_ach_rows() {
 		row.position = core.vec2(0, 0)
 		row.z_index = 61
 		root.add_child(mut row)
-		val := st.get_int(d.key, 0)
+		mut val := st.get_int(d.key, 0)
+		if d.key == 'coll_count' {
+			val = coll_count(st)
+		}
 		claimed := st.get_int('ach_${d.id}', 0) == 1
 		mut info := core.Node.new('AInfo${i}')
 			.with(&render.Label{
@@ -276,6 +387,13 @@ fn (mut m MapScreen) open_ach() {
 	if mut c := m.scene().root.find('AchClose') {
 		c.active = true
 	}
+	if mut c := m.scene().root.find('BookTab') {
+		c.active = true
+	}
+	if mut c := m.scene().root.find('CollTab') {
+		c.active = true
+	}
+	m.ach_tab = 0
 	m.rebuild_ach_rows()
 }
 
@@ -284,6 +402,12 @@ fn (mut m MapScreen) close_ach() {
 		p.active = false
 	}
 	if mut c := m.scene().root.find('AchClose') {
+		c.active = false
+	}
+	if mut c := m.scene().root.find('BookTab') {
+		c.active = false
+	}
+	if mut c := m.scene().root.find('CollTab') {
 		c.active = false
 	}
 	for i in 0 .. 12 {
@@ -297,6 +421,17 @@ fn (mut m MapScreen) close_ach() {
 			r.destroy()
 		}
 		if mut r := m.scene().root.find('AClaimLbl${i}') {
+			r.destroy()
+		}
+	}
+	for i in 0 .. 21 {
+		if mut r := m.scene().root.find('CRow${i}') {
+			r.destroy()
+		}
+		if mut r := m.scene().root.find('CIcon${i}') {
+			r.destroy()
+		}
+		if mut r := m.scene().root.find('CName${i}') {
 			r.destroy()
 		}
 	}
@@ -402,6 +537,18 @@ fn (mut m MapScreen) build_map_view() {
 			chest.z_index = 3
 			content.add_child(mut chest)
 		}
+		// star rating earned on this level (golden dots next to the point)
+		nst := m.scene().store.get_int('stars_${i}', 0)
+		if nst > 0 {
+			for s in 0 .. nst {
+				mut stp := core.Node.new('Star${i}_${s}')
+					.with(&render.UITransform{ size: core.vec2(13, 13), anchor: core.vec2(0.5, 0.5) })
+					.with(&render.Panel{ color: core.rgba(255, 215, 90, 255), radius: 7 })
+				stp.position = core.vec2(x - 46 + f32(s) * 18, y + 28)
+				stp.z_index = 4
+				content.add_child(mut stp)
+			}
+		}
 	}
 }
 
@@ -419,6 +566,11 @@ fn (mut m MapScreen) refresh_coins() {
 	if mut c := m.scene().root.find('AchGems') {
 		if mut l := c.get_component[render.Label]() {
 			l.text = 'Gems: ${m.scene().store.get_int('gems', 0)}'
+		}
+	}
+	if mut c := m.scene().root.find('StarLabel') {
+		if mut l := c.get_component[render.Label]() {
+			l.text = 'Stars: ${m.scene().store.get_int('total_stars', 0)}'
 		}
 	}
 }
@@ -441,6 +593,7 @@ fn (mut m MapScreen) update(dt f32) {
 		if mut b := m.scene().root.find('BookBtn') {
 			if mut bt := b.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					m.ach_open = true
 					m.open_ach()
 					m.refresh_coins()
@@ -452,11 +605,36 @@ fn (mut m MapScreen) update(dt f32) {
 		if mut c := m.scene().root.find('AchClose') {
 			if mut bt := c.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					m.ach_open = false
 					m.close_ach()
 					return
 				}
 			}
+		}
+		// tab switch: BOOK (achievements) / COLLECTION (elements)
+		if mut tb := m.scene().root.find('BookTab') {
+			if mut bt := tb.get_component[render.Button]() {
+				if bt.clicked && m.ach_tab != 0 {
+					m.ach_tab = 0
+					m.rebuild_ach_rows()
+					m.refresh_coins()
+					return
+				}
+			}
+		}
+		if mut tb := m.scene().root.find('CollTab') {
+			if mut bt := tb.get_component[render.Button]() {
+				if bt.clicked && m.ach_tab != 1 {
+					m.ach_tab = 1
+					m.rebuild_coll_rows()
+					m.refresh_coins()
+					return
+				}
+			}
+		}
+		if m.ach_tab == 1 {
+			return // collection tab: nothing else to poll
 		}
 		// claim buttons: AClaim0..AClaim11 (root children)
 		defs := achievement_defs()
@@ -465,8 +643,13 @@ fn (mut m MapScreen) update(dt f32) {
 			if mut c := m.scene().root.find('AClaim${i}') {
 				if mut bt := c.get_component[render.Button]() {
 					if bt.clicked {
+						bt.clicked = false
 						d := defs[i]
-						if st.get_int('ach_${d.id}', 0) == 0 && st.get_int(d.key, 0) >= d.target {
+						mut val := st.get_int(d.key, 0)
+						if d.key == 'coll_count' {
+							val = coll_count(st)
+						}
+						if st.get_int('ach_${d.id}', 0) == 0 && val >= d.target {
 							st.set_int('ach_${d.id}', 1)
 							st.set_int('gems', st.get_int('gems', 0) + d.reward)
 							m.toast('${d.name} +${d.reward} gems!')

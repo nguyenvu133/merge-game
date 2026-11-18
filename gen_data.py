@@ -13,6 +13,7 @@ def load(name):
         return json.load(f)
 
 m = load('monsters.json')
+en = load('enemies.json')  # enemies live in their OWN file, separate from elements
 b = load('boss.json')
 t = load('team.json')
 sk = load('skills.json')
@@ -20,7 +21,7 @@ pt = load('particles.json')
 ef = load('effects.json')
 lv = load('levels.json')
 
-els, ens = m['elements'], m['enemies']
+els, ens = m['elements'], en['enemies']
 skills = sk['skills']
 effects = ef['effects']
 particles = pt['particles']

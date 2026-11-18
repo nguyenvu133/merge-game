@@ -78,6 +78,49 @@ fn (mut b MergeBoard) build_glow() {
 	h.z_index = 31
 	h.active = false
 	b.field.add_child(mut h)
+
+	// MergeHint — gently pulses the 2 units that can merge right now (idle only),
+	// like the reference game's "you can merge" highlight
+	mut mh := core.Node.new('MergeHint')
+		.with(&render.UITransform{ size: core.vec2(76, 76), anchor: core.vec2(0.5, 0.5) })
+		.with(&render.Panel{ color: core.rgba(255, 215, 90, 30), radius: 14, border_width: 3, border_color: core.rgba(255, 215, 90, 180), block_input: false })
+	mh.position = core.vec2(-200, -200)
+	mh.z_index = 7 // above units (5) & ghosts (6), under drag glow (8)
+	mh.active = false
+	b.field.add_child(mut mh)
+}
+
+// refresh_merge_hint — finds the first mergeable pair (same element & level) and
+// shows the pulsing ring over BOTH units; hides it during battle / drag.
+fn (mut b MergeBoard) refresh_merge_hint() {
+	mut hint := b.field.find('MergeHint') or { return }
+	if b.dragging || b.battle == unsafe { nil } || b.battle.fighting() || b.battle.over() {
+		hint.active = false
+		return
+	}
+	for i in 0 .. b.units.len {
+		u := b.units[i]
+		if u == unsafe { nil } {
+			continue
+		}
+		mut um := u.get_component[Monster]() or { continue }
+		if !um.alive {
+			continue
+		}
+		for j in i + 1 .. b.units.len {
+			o := b.units[j]
+			if o == unsafe { nil } {
+				continue
+			}
+			mut om := o.get_component[Monster]() or { continue }
+			if om.alive && um.element == om.element && um.level == om.level {
+				hint.active = true
+				hint.position = u.position
+				return
+			}
+		}
+	}
+	hint.active = false
 }
 
 fn (mut b MergeBoard) init_cells() {
@@ -278,6 +321,8 @@ fn (mut b MergeBoard) spawn_unit(element string, level int, cell int) &core.Node
 	n.scale = core.vec2(0.4, 0.4)
 	n.tween().scale_to(core.vec2(1, 1), 0.25, .elastic_out)
 	b.units << n
+	mut st := b.scene().store
+	track_owned(mut st, element, level) // element collection (BOOK tab)
 	particle_burst_tag(mut b.field, at, 'spawn')
 	return n
 }
@@ -342,6 +387,7 @@ fn (mut b MergeBoard) update(dt f32) {
 			b.combo = 0
 		}
 	}
+	b.refresh_merge_hint()
 	in_ := b.input()
 	if b.battle != unsafe { nil } && b.battle.fighting() {
 		b.close_info()
@@ -481,13 +527,15 @@ fn (mut b MergeBoard) update(dt f32) {
 			b.glow.active = false
 		}
 	}
-	// buy cards (4 elements)
+	// buy cards (4 elements) — consume the click so one tap buys exactly ONE unit
 	for i in 0 .. 4 {
 		if mut card := b.field.find('Card${i}') {
 			if mut bt := card.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false // single-fire: no duplicate purchases
 					els := ['fire', 'water', 'earth', 'wind']
 					b.buy(els[i])
+					return
 				}
 			}
 		}
@@ -509,6 +557,11 @@ fn (mut b MergeBoard) buy(element string) {
 	b.place_new(element)
 	b.reapply_all()
 	auto_save_team(mut st, b.units)
+	// purchase particle burst (sparkle at the bought unit + shop area)
+	if b.units.len > 0 {
+		mut last := b.units[b.units.len - 1]
+		particle_burst_tag(mut b.field, last.position, 'merge')
+	}
 }
 
 fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
@@ -1039,8 +1092,12 @@ pub mut:
 	banner_timer f32 @[hide]
 	// perfect-wave tracking: player units lost during the CURRENT wave
 	lost_wave int
+	// total player losses across the whole battle (for the star rating)
+	lost_total int
 	// battle speed (1x / 2x toggle, like the reference game's fast-forward)
 	speed f32 = 1.0
+	// which wave the enemy preview is currently showing (-1 = none)
+	preview_wave int = -1
 }
 
 pub fn (mut c BattleController) start() {
@@ -1057,14 +1114,18 @@ pub fn (mut c BattleController) start() {
 	}
 	c.build_hud()
 	c.refresh_wave_label()
+	c.build_enemy_preview()
+	c.refresh_enemy_preview()
 }
 
 fn (mut c BattleController) build_hud() {
 	mut root := c.scene().root
-	// the stone arena map, like the reference game (6x12 grid board)
+	// the stone arena map, like the reference game (6x12 grid board) — one of
+	// 10 selectable boards (board0..board9, hue variants of the same arena)
+	bid := c.scene().store.get_int('board', 0)
 	mut bg := core.Node.new('BoardBG')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('back/board.png')
+			texture: assets.ref[assets.Texture]('back/board${bid}.png')
 			size:    core.vec2(540, 1086)
 		})
 	bg.position = core.vec2(270, 470)
@@ -1195,21 +1256,20 @@ fn (mut c BattleController) update(dt f32) {
 			}
 			stop_at := if m.ranged { m.range } else { f32(68) }
 			dist := e.position.distance(target.position)
-			if m.is_boss {
-				if mut k2d := e.get_component[kine2d.Kine2D]() {
-					mut clip := 'Idle'
-					if dist > stop_at {
-						clip = 'Move'
-					} else if m.cooldown <= 0.25 {
-						clip = 'Attack'
-					}
-					if !m.alive {
-						clip = 'Death'
-					}
-					if k2d.animation != clip {
-						k2d.animation = clip
-						k2d.time = 0
-					}
+			// Kine2D clip follows the state for bosses AND rig enemies (monter3)
+			if mut k2d := e.get_component[kine2d.Kine2D]() {
+				mut clip := 'Idle'
+				if dist > stop_at {
+					clip = 'Move'
+				} else if m.cooldown <= 0.25 {
+					clip = 'Attack'
+				}
+				if !m.alive {
+					clip = 'Death'
+				}
+				if k2d.animation != clip {
+					k2d.animation = clip
+					k2d.time = 0
 				}
 			}
 			if dist > stop_at {
@@ -1288,6 +1348,8 @@ fn (mut c BattleController) update(dt f32) {
 	if c.enemies.len == 0 && c.wave < def.waves.len && c.state == 'fighting' {
 		c.state = 'idle'
 		c.banner_timer = 1.2
+		c.refresh_wave_label()
+		c.refresh_enemy_preview() // show the NEXT wave's monsters
 		// PERFECT wave: no player unit fell this wave -> bonus coins
 		if c.lost_wave == 0 {
 			bonus := 10 + c.level * 2
@@ -1420,6 +1482,7 @@ fn damage_unit(c &BattleController, mut target &core.Node, dmg f32, crit f32, sk
 			damage_popup(c, target.position, 0, false)
 			if skill != '' {
 				apply_skill_effect(mut m, skill)
+				skill_fx(c, target.position, skill)
 			}
 			return
 		}
@@ -1428,6 +1491,7 @@ fn damage_unit(c &BattleController, mut target &core.Node, dmg f32, crit f32, sk
 		damage_popup(c, target.position, int(hit), m.side == 1)
 		if skill != '' {
 			apply_skill_effect(mut m, skill)
+			skill_fx(c, target.position, skill)
 		}
 		if m.hp <= 0 {
 			kill_unit(c, mut target, mut m)
@@ -1478,6 +1542,34 @@ fn apply_skill_effect(mut m Monster, skill string) {
 	}
 }
 
+// skill_fx — bursts the particle that matches the skill's effect (burn -> fire
+// sparks, freeze -> ice shards, stun -> stars...) at the target position.
+fn skill_fx(c &BattleController, at core.Vec2, skill string) {
+	if skill == '' {
+		return
+	}
+	sd := skill_data(skill)
+	if sd.effect == '' || sd.effect == 'none' {
+		return
+	}
+	ed := effect_data(sd.effect)
+	mut tag := 'spawn'
+	match ed.effect_type {
+		'burn' { tag = 'meteor' }
+		'poison' { tag = 'combo' }
+		'freeze' { tag = 'freeze' }
+		'stun' { tag = 'stun_star' }
+		'slow' { tag = 'freeze_break' }
+		'weak' { tag = 'heal_big' }
+		'atk_up' { tag = 'levelup' }
+		'shield' { tag = 'spawn' }
+		'regen' { tag = 'heal' }
+		else { tag = 'spawn' }
+	}
+	mut root := c.scene().root
+	particle_burst_tag(mut root, at, tag)
+}
+
 // fire_projectile â€” a ranged attack: a projectile flies to the target, then the damage lands.
 fn (mut c BattleController) fire_projectile(from core.Vec2, to core.Vec2, tex assets.AssetRef[assets.Texture], dmg f32, mut target &core.Node, crit f32, skill string) {
 	if target == unsafe { nil } {
@@ -1508,6 +1600,7 @@ fn (mut c BattleController) fire_projectile(from core.Vec2, to core.Vec2, tex as
 				damage_popup(c, t.position, 0, false)
 				if skill != '' {
 					apply_skill_effect(mut m, skill)
+					skill_fx(c, t.position, skill)
 				}
 				return
 			}
@@ -1516,6 +1609,7 @@ fn (mut c BattleController) fire_projectile(from core.Vec2, to core.Vec2, tex as
 			damage_popup(c, t.position, int(hit), m.side == 1)
 			if skill != '' {
 				apply_skill_effect(mut m, skill)
+				skill_fx(c, t.position, skill)
 			}
 			if m.hp <= 0 {
 				kill_unit(c, mut t, mut m)
@@ -1557,6 +1651,7 @@ fn kill_unit(c &BattleController, mut target &core.Node, mut m &Monster) {
 	} else {
 		mut cc := unsafe { c }
 		cc.lost_wave++
+		cc.lost_total++
 		if cc.board != unsafe { nil } {
 			mut b := cc.board
 			b.remove_unit(mut target)
@@ -1652,12 +1747,15 @@ fn (mut c BattleController) spawn_wave() {
 	c.wave++
 	c.state = 'fighting'
 	c.lost_wave = 0
+	c.lost_total = 0
 	cols := [f32(94), 188, 282, 376, 470]
 	mut idx := 0
 	// elite enemies: golden, tankier, 3x coins — chance grows with level (8-25%)
-	mut elite_chance := f32(0.08) + f32(c.level) * 0.0017
-	if elite_chance > 0.25 {
-		elite_chance = 0.25
+	// + the LUCK attribute (up to +80% more elite spawns)
+	luck := f32(c.scene().store.get_int('attr_luck', 0))
+	mut elite_chance := f32(0.08) + f32(c.level) * 0.0017 + luck * 0.008
+	if elite_chance > 0.4 {
+		elite_chance = 0.4
 	}
 	for _ in 0 .. w.count {
 		row := (idx / 5) % 4
@@ -1670,32 +1768,21 @@ fn (mut c BattleController) spawn_wave() {
 		boss := w.boss
 		elite := !boss && rand.f32() < elite_chance
 		bdef := if boss { boss_for_level(c.level) } else { BossData{} }
-		tex := if boss { bdef.tex } else { enemy_tex(w.mtype) }
+		tex := if boss { 'Kine/boss_nguoi_da.png' } else { enemy_tex(w.mtype) }
 		mut sz := if boss {
-			es := enemy_size(5)
-			core.vec2(es.x * bdef.size_scale, es.y * bdef.size_scale)
+			// boss as a plain sprite for now (rig .kine art is not consistent yet)
+			core.vec2(130 * bdef.size_scale, 130 * bdef.size_scale)
 		} else {
 			enemy_size(w.mtype)
 		}
 		mut n := core.Node.new('Enemy')
-		if boss {
-			// boss uses Velo's Kine2D component (rig converted from the .kine)
-			n = n.with(&kine2d.Kine2D{
-				data:        assets.ref[assets.TextAsset]('Kine/pixelforge-nguoi-da.skel.json')
-				atlas:       assets.ref[assets.TextAsset]('Kine/pixelforge-nguoi-da.atlas.json')
-				animation:   'Move'
-				looping:     true
-				playing:     true
-				canvas_size: core.vec2(960, 600)
-			})
-			n.scale = core.vec2(1.0, 1.0) // 0.45 is baked in the skel — node scale 1
-		} else {
-			n = n.with(&render.Sprite{
-				texture: assets.ref[assets.Texture](tex)
-				size:    sz
-				color:   enemy_tint(w.mtype)
-			})
-		}
+		// TEMP: bosses & monter3 show as static .png sprites (the .kine rig art is
+		// not consistent with the monster images yet — revert to Kine2D later).
+		n = n.with(&render.Sprite{
+			texture: assets.ref[assets.Texture](tex)
+			size:    sz
+			color:   enemy_tint(w.mtype)
+		})
 		if elite {
 			if mut sp := n.get_component[render.Sprite]() {
 				sp.color = core.rgba(255, 215, 80, 255) // golden elite
@@ -1706,7 +1793,7 @@ fn (mut c BattleController) spawn_wave() {
 			}
 		}
 		n.position = pos
-		n.z_index = 4
+		n.z_index = if boss { 7 } else { 4 } // boss ABOVE player units (z5) so the army never covers him
 		root.add_child(mut n)
 		particle_burst_tag(mut root, pos, 'spawn')
 		if boss {
@@ -1813,6 +1900,103 @@ fn (mut c BattleController) refresh_wave_label() {
 	}
 }
 
+// build_enemy_preview — shows the NEXT wave's monsters standing on the arena
+// EXACTLY like the player's own team (real size, spawn positions, HP bar +
+// level tag; the boss stands as its idle rig) — like the reference game shows
+// the enemy army before the battle starts.
+fn (mut c BattleController) build_enemy_preview() {
+	mut root := c.scene().root
+	mut box := core.Node.new('EnemyPreview')
+	box.position = core.vec2(0, 0)
+	box.z_index = 20 // UNDER the battle banner (z26) so the boss never covers the button
+	box.active = true
+	root.add_child(mut box)
+
+	def := level_def(c.level)
+	w := def.waves[c.wave]
+	cols := [f32(94), 188, 282, 376, 470]
+	show_n := if w.count > 10 { 10 } else { w.count }
+	mut idx := 0
+	for _ in 0 .. show_n {
+		row := (idx / 5) % 4
+		col := idx % 5
+		mut pos := core.vec2(cols[col], f32(180 + row * 85))
+		if w.boss {
+			pos = core.vec2(270, 320)
+		}
+		if w.boss {
+			bdef := boss_for_level(c.level)
+			// boss preview = the same idle rig the real boss uses
+			mut n := core.Node.new('PEnemy${idx}')
+				.with(&render.Sprite{
+					texture: assets.ref[assets.Texture]('Kine/boss_nguoi_da.png')
+					size:    core.vec2(110 * bdef.size_scale, 110 * bdef.size_scale)
+				})
+			n.position = pos
+			n.z_index = 22
+			box.add_child(mut n)
+			b := boss_for_level(c.level)
+			mut tag := core.Node.new('PTag')
+				.with(&render.Label{
+					text:  b.name
+					size:  22
+					align: 'center'
+					color: core.rgba(255, 80, 80, 255)
+				})
+			tag.position = core.vec2(0, -70)
+			tag.z_index = 23
+			n.add_child(mut tag)
+		} else {
+			mut n := core.Node.new('PEnemy${idx}')
+				.with(&render.Sprite{
+					texture: assets.ref[assets.Texture](enemy_tex(w.mtype))
+					size:    enemy_size(w.mtype)
+					color:   enemy_tint(w.mtype)
+				})
+			n.position = pos
+			n.z_index = 22
+			box.add_child(mut n)
+			make_hp_bar(mut n, 30, -30) // like the player team's bars
+			set_level_tag(n, w.level)
+		}
+		idx++
+	}
+	// caption under the preview
+	mut cap := core.Node.new('PCaption')
+		.with(&render.Label{
+			text:  if w.boss { 'BOSS WAVE - tap the banner to fight!' } else { 'Wave ${c.wave + 1}/${def.waves.len} - ${w.count} enemies - tap the banner' }
+			size:  17
+			align: 'center'
+			color: core.rgba(255, 225, 140, 255)
+		})
+	cap.position = core.vec2(270, 400)
+	cap.z_index = 23
+	box.add_child(mut cap)
+}
+
+// refresh_enemy_preview — builds the preview for the current next wave (idle)
+// and destroys it as soon as the fight starts or the level is done.
+fn (mut c BattleController) refresh_enemy_preview() {
+	mut root := c.scene().root
+	mut box := root.find('EnemyPreview')
+	def := level_def(c.level)
+	if c.state != 'idle' || c.wave >= def.waves.len {
+		if mut b := box {
+			b.destroy()
+		}
+		c.preview_wave = -1
+		return
+	}
+	if box != none && c.preview_wave == c.wave {
+		return // already showing this wave
+	}
+	if mut b := box {
+		b.destroy()
+	}
+	c.build_enemy_preview()
+	c.preview_wave = c.wave
+}
+
 fn (mut c BattleController) start_battle() {
 	if c.over() {
 		return
@@ -1820,6 +2004,7 @@ fn (mut c BattleController) start_battle() {
 	c.battle_on = true
 	c.spawn_wave()
 	c.refresh_wave_label()
+	c.refresh_enemy_preview() // hides the preview once the fight starts
 }
 
 fn (mut c BattleController) win() {
@@ -1844,6 +2029,23 @@ fn (mut c BattleController) win() {
 	}
 	mut root := c.scene().root
 	particle_burst_tag(mut root, core.vec2(270, 400), 'win')
+	// star rating: 0 losses = 3 stars, 1 = 2, 2+ = 1 — best score kept per level
+	mut stars := 1
+	if c.lost_total == 0 {
+		stars = 3
+	} else if c.lost_total == 1 {
+		stars = 2
+	}
+	key := 'stars_${c.level}'
+	if st.get_int(key, 0) < stars {
+		st.set_int(key, stars)
+	}
+	st.set_int('total_stars', 0)
+	mut sum := 0
+	for l in 1 .. level_count() + 1 {
+		sum += st.get_int('stars_${l}', 0)
+	}
+	st.set_int('total_stars', sum)
 	if mut ui := c.scene().root.get_component[BattleUI]() {
 		ui.hide_battle_buttons()
 		ui.show_victory(reward)
@@ -1880,6 +2082,8 @@ pub mut:
 	team_tab    int = 0 // 0 = team table, 1 = attributes table
 	team_panel  &core.Node = unsafe { nil }
 	team_rows   []&core.Node
+	// banner breathing animation
+	banner_pulse f32 @[hide]
 }
 
 fn (mut u BattleUI) start() {
@@ -1905,7 +2109,7 @@ fn (mut u BattleUI) build_back() {
 	// 2x battle speed toggle (fast-forward like the reference game)
 	mut spd := core.Node.new('SpeedBtn')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/button0.png')
+			texture: assets.ref[assets.Texture]('ui/button1.png')
 			size:    core.vec2(64, 34)
 		})
 		.with(&render.Button{})
@@ -1922,6 +2126,27 @@ fn (mut u BattleUI) build_back() {
 	sl.position = core.vec2(0, 0)
 	sl.z_index = 26
 	spd.add_child(mut sl)
+
+	// BOARD button — cycles the 10 selectable battle arenas (board0..board9)
+	mut bb := core.Node.new('BoardBtn')
+		.with(&render.Sprite{
+			texture: assets.ref[assets.Texture]('ui/button1.png')
+			size:    core.vec2(64, 34)
+		})
+		.with(&render.Button{})
+	bb.position = core.vec2(170, 55)
+	bb.z_index = 25
+	root.add_child(mut bb)
+	mut bl := core.Node.new('BoardLabel')
+		.with(&render.Label{
+			text:  'BOARD'
+			size:  14
+			align: 'center'
+			color: core.rgba(255, 255, 255, 255)
+		})
+	bl.position = core.vec2(0, 0)
+	bl.z_index = 26
+	bb.add_child(mut bl)
 }
 
 fn (mut u BattleUI) build_banner() {
@@ -1933,9 +2158,29 @@ fn (mut u BattleUI) build_banner() {
 		})
 		.with(&render.Button{})
 	banner.position = core.vec2(270, 470)
-	banner.z_index = 24
+	banner.z_index = 30 // above the enemy preview (z20) so the boss NEVER covers the battle button
 	root.add_child(mut banner)
 	u.banner = banner
+	u.banner_pulse = 0
+}
+
+// update_banner_pulse — the battle button gently scales 1.0→1.08→1.0 in a
+// loop (like the reference game's idle banner breathing animation).
+fn (mut u BattleUI) update_banner_pulse(dt f32) {
+	if u.banner == unsafe { nil } || !u.banner.active {
+		return
+	}
+	u.banner_pulse += dt * 3.2
+	if u.banner_pulse > 3.14159 * 2 {
+		u.banner_pulse = 0
+	}
+	// triangle wave 1.0 → 1.08 → 1.0 (smooth breathing, no trig needed)
+	mut t := u.banner_pulse
+	if t > 3.14159 {
+		t = 3.14159 * 2 - t
+	}
+	sc := 1.0 + 0.08 * (1.0 - (t / 3.14159))
+	u.banner.scale = core.vec2(sc, sc)
 }
 
 // ---------------------------------------------------------------------------
@@ -1969,7 +2214,7 @@ fn (mut u BattleUI) build_upgrade_panel() {
 
 	mut upbtn := core.Node.new('UpgradeBtn')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/button0.png')
+			texture: assets.ref[assets.Texture]('ui/button1.png')
 			size:    core.vec2(170, 38)
 		})
 		.with(&render.Button{})
@@ -2145,9 +2390,11 @@ fn (mut u BattleUI) build_row(uu &core.Node, y f32) &core.Node {
 fn (mut u BattleUI) update(dt f32) {
 	mut sc := u.scene()
 	mut root := sc.root
+	u.update_banner_pulse(dt)
 	if mut back := root.find('BackBtn') {
 		if mut bt := back.get_component[render.Button]() {
 			if bt.clicked {
+				bt.clicked = false
 				sc.change_scene('scenes/map.scene', fade: 0.3)
 				return
 			}
@@ -2157,6 +2404,7 @@ fn (mut u BattleUI) update(dt f32) {
 	if u.banner != unsafe { nil } && u.banner.active && !u.panel_open {
 		if mut bt := u.banner.get_component[render.Button]() {
 			if bt.clicked {
+				bt.clicked = false
 				sfx_play_scene(sc, 'audio/click.wav')
 				u.banner.active = false
 				if mut ub := root.find('UpgradeBtn') {
@@ -2184,6 +2432,7 @@ fn (mut u BattleUI) update(dt f32) {
 		if mut ub := root.find('UpgradeBtn') {
 			if mut bt := ub.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					u.open_panel()
 					return
 				}
@@ -2195,11 +2444,13 @@ fn (mut u BattleUI) update(dt f32) {
 		if mut cb := root.find('ChestBtn') {
 			if mut bt := cb.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					cb.active = false
 					mut st := u.scene().store
 					coins := 15 + u.level * 3
 					st.set_int('coins', st.get_int('coins', 200) + coins)
-					gems := if rand.f32() < 0.25 { 2 } else { 0 }
+					luck := st.get_int('attr_luck', 0)
+					gems := if rand.f32() < 0.25 + 0.04 * f32(luck) { 2 } else { 0 }
 					if gems > 0 {
 						st.set_int('gems', st.get_int('gems', 0) + gems)
 					}
@@ -2222,6 +2473,7 @@ fn (mut u BattleUI) update(dt f32) {
 		if mut tb := root.find('TeamBtn') {
 			if mut bt := tb.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					u.open_team_panel()
 					return
 				}
@@ -2233,6 +2485,7 @@ fn (mut u BattleUI) update(dt f32) {
 		if mut c := root.find('TeamClose') {
 			if mut bt := c.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					u.close_team_panel()
 					return
 				}
@@ -2263,6 +2516,7 @@ fn (mut u BattleUI) update(dt f32) {
 		if mut c := root.find('PanelClose') {
 			if mut bt := c.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					u.close_panel()
 					return
 				}
@@ -2274,6 +2528,7 @@ fn (mut u BattleUI) update(dt f32) {
 		if mut c := root.find('ContinueBtn') {
 			if mut bt := c.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					sc.change_scene('scenes/map.scene', fade: 0.3)
 					return
 				}
@@ -2282,6 +2537,7 @@ fn (mut u BattleUI) update(dt f32) {
 		if mut c := root.find('NextBtn') {
 			if mut bt := c.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					// straight into the next level — endless past level 100
 					mut st := sc.store
 					st.set_int('current_level', u.level + 1)
@@ -2293,6 +2549,7 @@ fn (mut u BattleUI) update(dt f32) {
 		if mut c := root.find('RetryBtn') {
 			if mut bt := c.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					sc.change_scene('scenes/battle.scene', fade: 0.3)
 					return
 				}
@@ -2301,6 +2558,7 @@ fn (mut u BattleUI) update(dt f32) {
 		if mut c := root.find('MapBtn') {
 			if mut bt := c.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					sc.change_scene('scenes/map.scene', fade: 0.3)
 					return
 				}
@@ -2311,6 +2569,7 @@ fn (mut u BattleUI) update(dt f32) {
 	if mut spd := root.find('SpeedBtn') {
 		if mut bt := spd.get_component[render.Button]() {
 			if bt.clicked {
+				bt.clicked = false
 				if mut c := root.get_component[BattleController]() {
 					c.speed = if c.speed >= 2.0 { f32(1.0) } else { f32(2.0) }
 					if mut sl := spd.find('SpeedLabel') {
@@ -2319,6 +2578,27 @@ fn (mut u BattleUI) update(dt f32) {
 						}
 					}
 					sfx_play_scene(sc, 'audio/click.wav')
+				}
+				return
+			}
+		}
+	}
+	// BOARD button — cycle the arena through the 10 board variants
+	if mut bb := root.find('BoardBtn') {
+		if mut bt := bb.get_component[render.Button]() {
+			if bt.clicked {
+				bt.clicked = false
+				mut st := sc.store
+				bid := (st.get_int('board', 0) + 1) % 10
+				st.set_int('board', bid)
+				if mut bg := root.find('BoardBG') {
+					if mut sp := bg.get_component[render.Sprite]() {
+						sp.texture = assets.ref[assets.Texture]('back/board${bid}.png')
+					}
+				}
+				sfx_play_scene(sc, 'audio/click.wav')
+				if mut b := root.get_component[MergeBoard]() {
+					b.toast('Board ${bid + 1}/10')
 				}
 				return
 			}
@@ -2339,6 +2619,7 @@ fn (mut u BattleUI) poll_panel_buttons() {
 			if mut b := r.find('BLv') {
 				if mut bt := b.get_component[render.Button]() {
 					if bt.clicked {
+						bt.clicked = false
 						if m.level >= 10 {
 							return // max level reached; keep upgrading DMG/HP/SPD/CRIT instead
 						}
@@ -2371,6 +2652,7 @@ fn (mut u BattleUI) poll_panel_buttons() {
 			if mut b := r.find('BDmg') {
 				if mut bt := b.get_component[render.Button]() {
 					if bt.clicked {
+						bt.clicked = false
 						if u.spend(60) {
 							m.damage += 6
 							u.open_panel()
@@ -2382,6 +2664,7 @@ fn (mut u BattleUI) poll_panel_buttons() {
 			if mut b := r.find('BHp') {
 				if mut bt := b.get_component[render.Button]() {
 					if bt.clicked {
+						bt.clicked = false
 						if u.spend(60) {
 							m.max_hp += 25
 							m.hp += 25
@@ -2394,6 +2677,7 @@ fn (mut u BattleUI) poll_panel_buttons() {
 			if mut b := r.find('BSpd') {
 				if mut bt := b.get_component[render.Button]() {
 					if bt.clicked {
+						bt.clicked = false
 						if u.spend(50) {
 							m.speed += 10
 							u.open_panel()
@@ -2405,6 +2689,7 @@ fn (mut u BattleUI) poll_panel_buttons() {
 			if mut b := r.find('BCrit') {
 				if mut bt := b.get_component[render.Button]() {
 					if bt.clicked {
+						bt.clicked = false
 						if u.spend(70) {
 							m.crit = if m.crit + 0.05 > 1.0 { 1.0 } else { m.crit + 0.05 }
 							u.open_panel()
@@ -2416,6 +2701,7 @@ fn (mut u BattleUI) poll_panel_buttons() {
 			if mut b := r.find('BAtk') {
 				if mut bt := b.get_component[render.Button]() {
 					if bt.clicked {
+						bt.clicked = false
 						if u.spend(60) {
 							m.atk_speed = if m.atk_speed * 0.88 < 0.4 { 0.4 } else { m.atk_speed * 0.88 }
 							if m.cooldown > m.atk_speed {
@@ -2523,7 +2809,7 @@ fn (mut u BattleUI) build_team_panel() {
 
 	// close button — also a direct root child
 	mut cl := core.Node.new('TeamClose')
-		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/button0.png'), size: core.vec2(140, 36) })
+		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/button1.png'), size: core.vec2(140, 36) })
 		.with(&render.Button{})
 	cl.position = core.vec2(270, 730)
 	cl.z_index = 48
@@ -2537,7 +2823,7 @@ fn (mut u BattleUI) build_team_panel() {
 
 	// TEAM button (top bar, next to UPGRADE)
 	mut tbtn := core.Node.new('TeamBtn')
-		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/button0.png'), size: core.vec2(170, 38) })
+		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/button1.png'), size: core.vec2(170, 38) })
 		.with(&render.Button{})
 	tbtn.position = core.vec2(430, 105) // top-right (next to UPGRADE), per reference layout
 	tbtn.z_index = 23
@@ -2550,7 +2836,7 @@ fn (mut u BattleUI) build_team_panel() {
 
 	// CHEST button — free reward between waves (coins, sometimes gems)
 	mut cbtn := core.Node.new('ChestBtn')
-		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/button0.png'), size: core.vec2(120, 38) })
+		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/button1.png'), size: core.vec2(120, 38) })
 		.with(&render.Button{})
 	cbtn.position = core.vec2(90, 105)
 	cbtn.z_index = 23
@@ -2690,8 +2976,8 @@ fn (mut u BattleUI) refresh_team_rows() {
 			u.team_rows << u.build_team_row(uu, i)
 		}
 	} else {
-		keys := ['attr_hp', 'attr_dmg', 'attr_spd', 'attr_crit', 'attr_coin']
-		names := ['HP +10% / level', 'DMG +10% / level', 'SPD +4% / level', 'CRIT +5% / level', 'COIN +10% / level']
+		keys := ['attr_hp', 'attr_dmg', 'attr_spd', 'attr_crit', 'attr_coin', 'attr_luck']
+		names := ['HP +10% / level', 'DMG +10% / level', 'SPD +4% / level', 'CRIT +5% / level', 'COIN +10% / level', 'LUCK +8% drops / level']
 		for i in 0 .. keys.len {
 			u.team_rows << u.build_attr_row(keys[i], names[i], i)
 		}
@@ -2806,6 +3092,7 @@ fn (mut u BattleUI) poll_team_buttons() {
 			}
 			if mut bt := r.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					mut uu := units[i]
 					if mut m := uu.get_component[Monster]() {
 						cost := 5 + m.level * 2
@@ -2838,7 +3125,7 @@ fn (mut u BattleUI) poll_team_buttons() {
 			}
 		}
 	} else {
-		keys := ['attr_hp', 'attr_dmg', 'attr_spd', 'attr_crit', 'attr_coin']
+		keys := ['attr_hp', 'attr_dmg', 'attr_spd', 'attr_crit', 'attr_coin', 'attr_luck']
 		for i, r in u.team_rows {
 			if r == unsafe { nil } {
 				continue
@@ -2848,6 +3135,7 @@ fn (mut u BattleUI) poll_team_buttons() {
 			}
 			if mut bt := r.get_component[render.Button]() {
 				if bt.clicked {
+					bt.clicked = false
 					lv := u.scene().store.get_int(keys[i], 0)
 					cost := 10 + lv * 5
 					if board.upgrade_attr(keys[i], cost) {
@@ -2910,7 +3198,7 @@ fn (mut u BattleUI) build_overlays() {
 
 	mut cont := core.Node.new('ContinueBtn')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/button0.png')
+			texture: assets.ref[assets.Texture]('ui/button1.png')
 			size:    core.vec2(188, 40)
 		})
 		.with(&render.Button{})
@@ -2927,7 +3215,7 @@ fn (mut u BattleUI) build_overlays() {
 	// NEXT — jump straight into the following level (endless beyond level 100)
 	mut nxt := core.Node.new('NextBtn')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/button0.png')
+			texture: assets.ref[assets.Texture]('ui/button1.png')
 			size:    core.vec2(188, 40)
 		})
 		.with(&render.Button{})
@@ -2966,7 +3254,7 @@ fn (mut u BattleUI) build_overlays() {
 
 	mut retry := core.Node.new('RetryBtn')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/button0.png')
+			texture: assets.ref[assets.Texture]('ui/button1.png')
 			size:    core.vec2(150, 32)
 		})
 		.with(&render.Button{})
@@ -2982,7 +3270,7 @@ fn (mut u BattleUI) build_overlays() {
 
 	mut mapb := core.Node.new('MapBtn')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/button0.png')
+			texture: assets.ref[assets.Texture]('ui/button1.png')
 			size:    core.vec2(150, 32)
 		})
 		.with(&render.Button{})
@@ -3002,6 +3290,7 @@ fn (mut u BattleUI) show_victory(reward int) {
 		return
 	}
 	u.close_panel()
+	u.close_team_panel()
 	u.overlays.active = true
 	u.victory_n.active = true
 	if mut c := u.scene().root.find('VictoryText') {
@@ -3034,6 +3323,7 @@ fn (mut u BattleUI) show_fail() {
 		return
 	}
 	u.close_panel()
+	u.close_team_panel()
 	u.overlays.active = true
 	u.fail_n.active = true
 	if mut c := u.scene().root.find('FailText') {

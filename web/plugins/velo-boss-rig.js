@@ -108,15 +108,12 @@
             // với giầy") — pushing the upper legs up put them inside the shoe parts and
             // the boots visually reversed vs the body. The rig now keeps the raw v4
             // leg positions; only the shoes are foot-planted.
-            // BOSS TINT: a GENTLE color tint — keep the original .kine colors
-            // visible (a full multiply washed the boss out); blend 40% tint.
+            // NO boss tint: every boss keeps its ORIGINAL .kine art colors (a tint
+            // multiply/blend washed the character out — user: "Boss bị mất màu gốc").
             const bossMon = boss.node.components && boss.node.components.find((x) => x.constructor.name === 'Monster');
             const bid = bossMon ? bossMon.boss_id : -1;
-            if (bid >= 0 && window.__bossTints && window.__bossTints[bid]) {
-              const tc = window.__bossTints[bid];
-              rig.tint = null; // disable the hard multiply
-              rig._tintBlend = { r: tc[0] / 255, g: tc[1] / 255, b: tc[2] / 255 };
-            }
+            rig.tint = null;
+            rig._tintBlend = null;
             window.__bossRig = { active: true, parts: parts.length, feet, feetIdx, armIdx, groundY: Math.round(ground), bossId: bid, shifts: [] };
           }
         }
