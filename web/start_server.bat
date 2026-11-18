@@ -1,32 +1,29 @@
 @echo off
-chcp 65001 >nul
 rem ============================================================
-rem start_server.bat - run the web game LOCALLY (no internet).
-rem Double-click this file: it starts the server first, waits a
-rem moment, then opens the browser. Works with python / py / python3.
+rem start_server.bat - run the web game LOCALLY (fully offline).
+rem Needs NO Python: it prefers Python if present, otherwise it
+rem falls back to a tiny PowerShell/.NET server (always there on
+rem Windows). Server starts first, browser opens after 1 second.
 rem NOTE: do NOT open index.html directly (browsers block file://
 rem asset loading). Always use this server.
 rem ============================================================
 cd /d "%~dp0\.."
 
-rem ---- find a Python that can run http.server ----
+rem ---- 1) prefer Python if it can run http.server ----
 set "PY="
 py -3 -c "import http.server" >nul 2>&1 && set "PY=py -3"
 if not defined PY python -c "import http.server" >nul 2>&1 && set "PY=python"
 if not defined PY python3 -c "import http.server" >nul 2>&1 && set "PY=python3"
-if not defined PY (
-    echo.
-    echo  ERROR: Python not found. Install Python 3 from python.org
-    echo  and tick "Add Python to PATH", then run this again.
-    echo.
-    pause
-    exit /b 1
-)
 
-echo.
-echo  Starting local server on http://localhost:8090/build/webgl/
-echo  (press Ctrl+C in this window to stop)
-echo.
+rem ---- open the browser after the server is up ----
 start "" cmd /c "timeout /t 1 >nul & start "" http://localhost:8090/build/webgl/"
-%PY% -m http.server 8090
+
+if defined PY (
+    echo  Server: Python (%PY%)
+    %PY% -m http.server 8090
+) else (
+    rem ---- 2) fallback: PowerShell/.NET server - NO Python needed ----
+    echo  Server: PowerShell (no Python found - using built-in .NET server)
+    powershell -ExecutionPolicy Bypass -File "%~dp0server.ps1" -Port 8090
+)
 pause

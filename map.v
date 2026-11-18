@@ -211,22 +211,22 @@ fn (mut m MapScreen) build_achievements() {
 	mut panel := core.Node.new('AchPanel')
 		.with(&render.Sprite{
 			texture: assets.ref[assets.Texture]('back/layer 1.png')
-			size:    core.vec2(430, 640)
+			size:    core.vec2(430, 600)
 		})
-	panel.position = core.vec2(270, 480)
+	panel.position = core.vec2(270, 470)
 	panel.z_index = 60
 	panel.active = false
 	root.add_child(mut panel)
 
 	mut t := core.Node.new('AchTitle')
 		.with(&render.Label{ text: 'ACHIEVEMENTS', size: 24, align: 'center', color: core.rgba(255, 235, 140, 255) })
-	t.position = core.vec2(0, -290)
+	t.position = core.vec2(0, -250)
 	t.z_index = 61
 	panel.add_child(mut t)
 
 	mut g := core.Node.new('AchGems')
 		.with(&render.Label{ text: 'Gems: 0', size: 17, align: 'center', color: core.rgba(120, 220, 255, 255) })
-	g.position = core.vec2(0, 280)
+	g.position = core.vec2(0, 250)
 	g.z_index = 61
 	panel.add_child(mut g)
 
@@ -235,7 +235,7 @@ fn (mut m MapScreen) build_achievements() {
 		.with(&render.UITransform{ size: core.vec2(150, 34), anchor: core.vec2(0.5, 0.5) })
 		.with(&render.Panel{ color: core.rgba(60, 110, 170, 255), radius: 8 })
 		.with(&render.Button{})
-	tb1.position = core.vec2(185, 175)
+	tb1.position = core.vec2(185, 245)
 	tb1.z_index = 62
 	tb1.active = false
 	root.add_child(mut tb1)
@@ -249,7 +249,7 @@ fn (mut m MapScreen) build_achievements() {
 		.with(&render.UITransform{ size: core.vec2(150, 34), anchor: core.vec2(0.5, 0.5) })
 		.with(&render.Panel{ color: core.rgba(120, 80, 40, 255), radius: 8 })
 		.with(&render.Button{})
-	tb2.position = core.vec2(355, 175)
+	tb2.position = core.vec2(355, 245)
 	tb2.z_index = 62
 	tb2.active = false
 	root.add_child(mut tb2)
@@ -260,9 +260,9 @@ fn (mut m MapScreen) build_achievements() {
 	tb2.add_child(mut lb2)
 
 	mut close := core.Node.new('AchClose')
-		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/close.png'), size: core.vec2(36, 39) })
+		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/close.png'), size: core.vec2(40, 44) })
 		.with(&render.Button{})
-	close.position = core.vec2(385, 165)
+	close.position = core.vec2(390, 180) // top-right corner, clear of the tabs (y 245)
 	close.z_index = 61
 	close.active = false
 	root.add_child(mut close)
@@ -274,10 +274,25 @@ fn (mut m MapScreen) build_achievements() {
 // with its icon + current best level (tracked in the store as seen_<elem>/elem_lv_<elem>).
 fn (mut m MapScreen) rebuild_coll_rows() {
 	mut root := m.scene().root
+	// destroy any leftover achievement rows from the BOOK tab first
+	for i in 0 .. 17 {
+		if mut r := root.find('ARow${i}') {
+			r.destroy()
+		}
+		if mut r := root.find('AInfo${i}') {
+			r.destroy()
+		}
+		if mut r := root.find('AClaim${i}') {
+			r.destroy()
+		}
+		if mut r := root.find('AClaimLbl${i}') {
+			r.destroy()
+		}
+	}
 	els := ['fire', 'water', 'earth', 'wind', 'lightning', 'ice', 'steam', 'lava', 'ember', 'mud', 'mist', 'dust',
 		'plasma', 'frostfire', 'thunder', 'glacier', 'crystal', 'permafrost', 'storm', 'blizzard', 'hail']
 	mut st := m.scene().store
-	mut y := f32(218)
+	mut y := f32(285)
 	for i, e in els {
 		mut row := core.Node.new('CRow${i}')
 		row.position = core.vec2(0, 0)
@@ -304,7 +319,7 @@ fn (mut m MapScreen) rebuild_coll_rows() {
 		nm.position = core.vec2(180, y)
 		nm.z_index = 63
 		root.add_child(mut nm)
-		y += 24
+		y += 23
 	}
 }
 
@@ -337,9 +352,21 @@ fn (mut m MapScreen) rebuild_ach_rows() {
 			r.destroy()
 		}
 	}
+	// destroy any leftover COLLECTION rows (from the other tab)
+	for i in 0 .. 21 {
+		if mut r := root.find('CRow${i}') {
+			r.destroy()
+		}
+		if mut r := root.find('CIcon${i}') {
+			r.destroy()
+		}
+		if mut r := root.find('CName${i}') {
+			r.destroy()
+		}
+	}
 	mut st := m.scene().store
 	defs := achievement_defs()
-	mut y := f32(330)
+	mut y := f32(285)
 	for i, d in defs {
 		mut row := core.Node.new('ARow${i}')
 		row.position = core.vec2(0, 0)
@@ -379,7 +406,7 @@ fn (mut m MapScreen) rebuild_ach_rows() {
 			lbl.z_index = 63
 			btn.add_child(mut lbl)
 		}
-		y += 46
+		y += 29
 	}
 }
 
@@ -412,7 +439,7 @@ fn (mut m MapScreen) close_ach() {
 	if mut c := m.scene().root.find('CollTab') {
 		c.active = false
 	}
-	for i in 0 .. 12 {
+	for i in 0 .. 17 {
 		if mut r := m.scene().root.find('ARow${i}') {
 			r.destroy()
 		}
