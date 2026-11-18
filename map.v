@@ -209,8 +209,10 @@ fn coll_count(st &core.Store) int {
 fn (mut m MapScreen) build_achievements() {
 	mut root := m.scene().root
 	mut panel := core.Node.new('AchPanel')
-		.with(&render.UITransform{ size: core.vec2(430, 640), anchor: core.vec2(0.5, 0.5) })
-		.with(&render.Panel{ color: core.rgba(18, 14, 28, 245), radius: 14, border_width: 3, border_color: core.rgba(255, 210, 90, 255) })
+		.with(&render.Sprite{
+			texture: assets.ref[assets.Texture]('back/layer 1.png')
+			size:    core.vec2(430, 640)
+		})
 	panel.position = core.vec2(270, 480)
 	panel.z_index = 60
 	panel.active = false

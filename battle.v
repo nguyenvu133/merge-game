@@ -1019,7 +1019,7 @@ fn (mut b MergeBoard) add_coins(v int) {
 fn (mut b MergeBoard) refresh_coin_label() {
 	if mut c := b.scene().root.find('CoinLabel') {
 		if mut l := c.get_component[render.Label]() {
-			l.text = 'Coins: ${fmt_num(b.scene().store.get_int('coins', 200))}'
+			l.text = '${fmt_num(b.scene().store.get_int('coins', 200))}' // number only — sits in the coin pill
 		}
 	}
 	b.refresh_card_labels()
@@ -1120,56 +1120,60 @@ pub fn (mut c BattleController) start() {
 
 fn (mut c BattleController) build_hud() {
 	mut root := c.scene().root
-	// the stone arena map, like the reference game (6x12 grid board) — one of
-	// 10 selectable boards (board0..board9, hue variants of the same arena)
-	bid := c.scene().store.get_int('board', 0)
+	// the arena background — default is the game's own cavern art (Layer.png),
+	// the BOARD button cycles through 10 tinted variants (board0..board9).
+	bid := c.scene().store.get_int('board', -1)
 	mut bg := core.Node.new('BoardBG')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('back/board${bid}.png')
-			size:    core.vec2(540, 1086)
+			texture: assets.ref[assets.Texture](if bid < 0 { 'back/Layer.png' } else { 'back/board${bid}.png' })
+			size:    core.vec2(540, 960)
 		})
-	bg.position = core.vec2(270, 470)
+	bg.position = core.vec2(270, 480)
 	bg.z_index = 0
 	root.add_child(mut bg)
+	// top HUD — plain labels, no background images (text centered on screen)
 	mut lvl := core.Node.new('LevelLabel')
 		.with(&render.Label{
 			text:  'Level ${c.level}'
 			size:  28
 			align: 'center'
-			color: core.rgba(255, 230, 140, 255)
+			color: core.rgba(255, 240, 170, 255)
 		})
-	lvl.position = core.vec2(270, 50)
-	lvl.z_index = 20
+	lvl.position = core.vec2(270, 40)
+	lvl.z_index = 21
 	root.add_child(mut lvl)
+
 	mut coin := core.Node.new('CoinLabel')
 		.with(&render.Label{
-			text:  'Coins: ${c.scene().store.get_int('coins', 200)}'
-			size:  21
+			text:  '${c.scene().store.get_int('coins', 200)}'
+			size:  20
 			align: 'center'
-			color: core.rgba(255, 220, 90, 255)
+			color: core.rgba(255, 225, 110, 255)
 		})
-	coin.position = core.vec2(270, 90)
-	coin.z_index = 20
+	coin.position = core.vec2(270, 78)
+	coin.z_index = 21
 	root.add_child(mut coin)
+
 	mut gem := core.Node.new('GemLabel')
 		.with(&render.Label{
-			text:  'Gems: ${c.scene().store.get_int('gems', 0)}'
+			text:  '${c.scene().store.get_int('gems', 0)}'
 			size:  19
 			align: 'center'
-			color: core.rgba(120, 220, 255, 255)
+			color: core.rgba(150, 225, 255, 255)
 		})
-	gem.position = core.vec2(270, 118)
-	gem.z_index = 20
+	gem.position = core.vec2(270, 112)
+	gem.z_index = 21
 	root.add_child(mut gem)
+
 	mut pwr := core.Node.new('PowerLabel')
 		.with(&render.Label{
 			text:  'Power: 0'
 			size:  17
 			align: 'center'
-			color: core.rgba(255, 190, 90, 255)
+			color: core.rgba(255, 205, 110, 255)
 		})
 	pwr.position = core.vec2(270, 146)
-	pwr.z_index = 20
+	pwr.z_index = 21
 	root.add_child(mut pwr)
 	// gems start at 20 on first ever load
 	if c.scene().store.get_int('gems', -1) < 0 {
@@ -2106,14 +2110,15 @@ fn (mut u BattleUI) build_back() {
 	back.z_index = 25
 	root.add_child(mut back)
 
-	// 2x battle speed toggle (fast-forward like the reference game)
+	// Right-side icon column: SPEED / BOARD / TEAM — teal squircles (click map 2.png)
+	// stacked under the Settings button (502,55), like the reference game's menu.
 	mut spd := core.Node.new('SpeedBtn')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/button1.png')
-			size:    core.vec2(64, 34)
+			texture: assets.ref[assets.Texture]('ui/click map 2.png')
+			size:    core.vec2(52, 52)
 		})
 		.with(&render.Button{})
-	spd.position = core.vec2(96, 55)
+	spd.position = core.vec2(502, 122)
 	spd.z_index = 25
 	root.add_child(mut spd)
 	mut sl := core.Node.new('SpeedLabel')
@@ -2127,20 +2132,20 @@ fn (mut u BattleUI) build_back() {
 	sl.z_index = 26
 	spd.add_child(mut sl)
 
-	// BOARD button — cycles the 10 selectable battle arenas (board0..board9)
+	// BOARD button — cycles the arenas (cavern default + 10 tinted variants)
 	mut bb := core.Node.new('BoardBtn')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/button1.png')
-			size:    core.vec2(64, 34)
+			texture: assets.ref[assets.Texture]('ui/click map 2.png')
+			size:    core.vec2(52, 52)
 		})
 		.with(&render.Button{})
-	bb.position = core.vec2(170, 55)
+	bb.position = core.vec2(502, 182)
 	bb.z_index = 25
 	root.add_child(mut bb)
 	mut bl := core.Node.new('BoardLabel')
 		.with(&render.Label{
-			text:  'BOARD'
-			size:  14
+			text:  '▣'
+			size:  20
 			align: 'center'
 			color: core.rgba(255, 255, 255, 255)
 		})
@@ -2191,7 +2196,7 @@ fn (mut u BattleUI) build_upgrade_panel() {
 	mut root := u.scene().root
 	mut panel := core.Node.new('UpgradePanel')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/panel_upgrade.png')
+			texture: assets.ref[assets.Texture]('back/layer 1.png')
 			size:    core.vec2(390, 470)
 		})
 	panel.position = core.vec2(270, 490)
@@ -2214,18 +2219,18 @@ fn (mut u BattleUI) build_upgrade_panel() {
 
 	mut upbtn := core.Node.new('UpgradeBtn')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/button1.png')
-			size:    core.vec2(170, 38)
+			texture: assets.ref[assets.Texture]('ui/click map 2.png')
+			size:    core.vec2(52, 52)
 		})
 		.with(&render.Button{})
-	upbtn.position = core.vec2(365, 105)
+	upbtn.position = core.vec2(502, 302) // 4th in the right-side column
 	upbtn.z_index = 23
 	upbtn.active = false
 	root.add_child(mut upbtn)
 	mut uplabel := core.Node.new('UpgradeLabel')
 		.with(&render.Label{
-			text:  'UPGRADE'
-			size:  17
+			text:  'UP'
+			size:  14
 			align: 'center'
 			color: core.rgba(255, 255, 255, 255)
 		})
@@ -2583,22 +2588,25 @@ fn (mut u BattleUI) update(dt f32) {
 			}
 		}
 	}
-	// BOARD button — cycle the arena through the 10 board variants
+	// BOARD button — cycle the arena: Layer.png (cavern, default) then board0..board9
 	if mut bb := root.find('BoardBtn') {
 		if mut bt := bb.get_component[render.Button]() {
 			if bt.clicked {
 				bt.clicked = false
 				mut st := sc.store
-				bid := (st.get_int('board', 0) + 1) % 10
+				mut bid := st.get_int('board', -1) + 1
+				if bid > 9 {
+					bid = -1
+				}
 				st.set_int('board', bid)
 				if mut bg := root.find('BoardBG') {
 					if mut sp := bg.get_component[render.Sprite]() {
-						sp.texture = assets.ref[assets.Texture]('back/board${bid}.png')
+						sp.texture = assets.ref[assets.Texture](if bid < 0 { 'back/Layer.png' } else { 'back/board${bid}.png' })
 					}
 				}
 				sfx_play_scene(sc, 'audio/click.wav')
 				if mut b := root.get_component[MergeBoard]() {
-					b.toast('Board ${bid + 1}/10')
+					b.toast(if bid < 0 { 'Arena: Cavern' } else { 'Arena ${bid + 1}/10' })
 				}
 				return
 			}
@@ -2757,8 +2765,10 @@ fn (mut u BattleUI) close_panel() {
 fn (mut u BattleUI) build_team_panel() {
 	mut root := u.scene().root
 	mut panel := core.Node.new('TeamPanel')
-		.with(&render.UITransform{ size: core.vec2(430, 540), anchor: core.vec2(0.5, 0.5) })
-		.with(&render.Panel{ color: core.rgba(18, 14, 28, 245), radius: 14, border_width: 3, border_color: core.rgba(120, 220, 255, 255) })
+		.with(&render.Sprite{
+			texture: assets.ref[assets.Texture]('back/layer 1.png')
+			size:    core.vec2(430, 540)
+		})
 	panel.position = core.vec2(270, 480)
 	panel.z_index = 46
 	panel.active = false
@@ -2821,29 +2831,29 @@ fn (mut u BattleUI) build_team_panel() {
 	cll.z_index = 49
 	cl.add_child(mut cll)
 
-	// TEAM button (top bar, next to UPGRADE)
+	// TEAM button — part of the right-side icon column (under Settings)
 	mut tbtn := core.Node.new('TeamBtn')
-		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/button1.png'), size: core.vec2(170, 38) })
+		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/click map 2.png'), size: core.vec2(52, 52) })
 		.with(&render.Button{})
-	tbtn.position = core.vec2(430, 105) // top-right (next to UPGRADE), per reference layout
+	tbtn.position = core.vec2(502, 242) // 3rd in the vertical icon stack (122/182/242)
 	tbtn.z_index = 23
 	root.add_child(mut tbtn)
 	mut tlbl := core.Node.new('TeamBtnLabel')
-		.with(&render.Label{ text: 'TEAM', size: 16, align: 'center', color: core.rgba(255, 255, 255, 255) })
+		.with(&render.Label{ text: 'TEAM', size: 12, align: 'center', color: core.rgba(255, 255, 255, 255) })
 	tlbl.position = core.vec2(0, 0)
 	tlbl.z_index = 24
 	tbtn.add_child(mut tlbl)
 
 	// CHEST button — free reward between waves (coins, sometimes gems)
 	mut cbtn := core.Node.new('ChestBtn')
-		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/button1.png'), size: core.vec2(120, 38) })
+		.with(&render.Sprite{ texture: assets.ref[assets.Texture]('ui/click map 2.png'), size: core.vec2(52, 52) })
 		.with(&render.Button{})
-	cbtn.position = core.vec2(90, 105)
+	cbtn.position = core.vec2(502, 362) // 5th in the right-side column
 	cbtn.z_index = 23
 	cbtn.active = false
 	root.add_child(mut cbtn)
 	mut clbl2 := core.Node.new('ChestBtnLabel')
-		.with(&render.Label{ text: 'CHEST', size: 15, align: 'center', color: core.rgba(255, 230, 140, 255) })
+		.with(&render.Label{ text: 'CHEST', size: 10, align: 'center', color: core.rgba(255, 230, 140, 255) })
 	clbl2.position = core.vec2(0, 0)
 	clbl2.z_index = 24
 	cbtn.add_child(mut clbl2)

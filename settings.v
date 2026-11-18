@@ -38,7 +38,7 @@ fn (mut s SettingsUI) build_panel() {
 	mut root := s.scene().root
 	mut panel := core.Node.new('SettingsPanel')
 		.with(&render.Sprite{
-			texture: assets.ref[assets.Texture]('ui/panel_settings.png')
+			texture: assets.ref[assets.Texture]('back/layer 1.png')
 			size:    core.vec2(390, 300)
 		})
 	panel.position = core.vec2(270, 450)
