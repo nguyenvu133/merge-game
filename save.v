@@ -78,9 +78,17 @@ fn build_save_json(st &core.Store, units []&core.Node) string {
 	sb.write_string(',"max_level":')
 	sb.write_string(st.get_int('max_level', 1).str())
 	sb.write_string(',"team":"')
+	mut count := 0
 	for u in units {
+		if count >= 15 {
+			break // never save more than the 15 board cells
+		}
 		if mut m := u.get_component[Monster]() {
-			sb.write_string('${m.element}:${m.level},')
+			if !m.alive || m.cell < 0 || m.cell >= 15 {
+				continue // dead units and unplaced units are not part of the team
+			}
+			sb.write_string('${m.element}:${m.level}:${m.cell},')
+			count++
 		}
 	}
 	sb.write_string('"}')
@@ -103,6 +111,12 @@ fn parse_team(s string) []TeamSlot {
 			out << TeamSlot{
 				element: cols[0]
 				level:   cols[1].int()
+			}
+		} else if cols.len == 3 {
+			out << TeamSlot{
+				element: cols[0]
+				level:   cols[1].int()
+				cell:    cols[2].int()
 			}
 		}
 	}

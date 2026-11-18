@@ -266,8 +266,14 @@ fn (mut b MergeBoard) start_army() {
 			if ts.element == '' {
 				continue
 			}
-			b.spawn_unit(ts.element, ts.level, 7 + i)
-			i++
+			// saved teams carry their exact board cell — spawn in place so units
+			// NEVER pile up at the fallback position (the reported overlap bug)
+			if ts.cell >= 0 && ts.cell < 15 {
+				b.spawn_unit(ts.element, ts.level, ts.cell)
+			} else if i < 8 {
+				b.spawn_unit(ts.element, ts.level, 7 + i)
+				i++
+			}
 		}
 		return
 	}
@@ -319,7 +325,7 @@ fn (mut b MergeBoard) spawn_unit(element string, level int, cell int) &core.Node
 	make_status_icons(mut n, -50)
 	set_level_tag(n, level)
 	n.scale = core.vec2(0.4, 0.4)
-	n.tween().scale_to(core.vec2(1, 1), 0.25, .elastic_out)
+	n.tween().scale_to(core.vec2(1, 1), 0.25, .quad_out) // plain ease — no elastic overshoot (a big pop made units briefly overlap their neighbours)
 	b.units << n
 	mut st := b.scene().store
 	track_owned(mut st, element, level) // element collection (BOOK tab)
@@ -603,7 +609,6 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 					particle_burst_tag(mut b.field, o.position, 'merge')
 					b.stat_merge()
 					mut st := b.scene().store
-				auto_save_team(mut st, b.units)
 					mut n := b.spawn_unit(el, lvl, -1)
 					b.reapply_all()
 					cell := b.nearest_free_cell(o.position)
@@ -612,6 +617,7 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 						m.cell = cell
 						m.home = b.cells[cell]
 					}
+					auto_save_team(mut st, b.units) // save AFTER the new unit has a real cell
 					if lvl >= 5 {
 						b.add_coins(lvl * 5)
 						b.toast('${el} L${lvl}! +${lvl * 5} coins')
@@ -630,7 +636,6 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 						particle_burst_tag(mut b.field, o.position, 'merge')
 						b.stat_merge()
 						mut st := b.scene().store
-					auto_save_team(mut st, b.units)
 						mut n := b.spawn_unit(hb, sm.level, -1)
 						b.reapply_all()
 						cell := b.nearest_free_cell(o.position)
@@ -639,6 +644,7 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 							m.cell = cell
 							m.home = b.cells[cell]
 						}
+						auto_save_team(mut st, b.units) // save AFTER the fusion has a real cell
 						b.toast('${hb} L${sm.level}! (fusion)')
 						return
 					}
@@ -655,6 +661,8 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 				o.position = u_home
 				_ = o_home
 				_ = u_home
+				mut st2 := b.scene().store
+				auto_save_team(mut st2, b.units) // remember the swapped cells
 				return
 			}
 		}
@@ -667,6 +675,8 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 			m.home = b.cells[cell]
 		}
 		u.position = b.cells[cell]
+		mut st3 := b.scene().store
+		auto_save_team(mut st3, b.units) // remember the new cell
 	} else {
 		u.position = sm.home
 	}
