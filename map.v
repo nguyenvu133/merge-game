@@ -67,36 +67,26 @@ fn (mut m MapScreen) build_bg() {
 
 fn (mut m MapScreen) build_hud() {
 	mut root := m.scene().root
-	mut title := core.Node.new('Title')
-		.with(&render.Label{
-			text:  'Elemental Monsters'
-			size:  34
-			align: 'center'
-			color: core.rgba(255, 235, 150, 255)
-		})
-	title.position = core.vec2(270, 48)
-	title.z_index = 10
-	root.add_child(mut title)
-
 	mut sub := core.Node.new('Subtitle')
 		.with(&render.Label{
 			text:  'Select a level (scroll)'
-			size:  19
+			size:  22
 			align: 'center'
 			color: core.rgba(210, 225, 245, 255)
 		})
-	sub.position = core.vec2(270, 92)
+	sub.position = core.vec2(270, 48)
 	sub.z_index = 10
 	root.add_child(mut sub)
 
+	// currency HUD — right side, stacked under the BOOK button (502,55)
 	mut coins := core.Node.new('CoinLabel')
 		.with(&render.Label{
 			text:  'Coins: ${m.scene().store.get_int('coins', 200)}'
 			size:  22
-			align: 'center'
+			align: 'left'
 			color: core.rgba(255, 220, 90, 255)
 		})
-	coins.position = core.vec2(270, 128)
+	coins.position = core.vec2(392, 112)
 	coins.z_index = 10
 	root.add_child(mut coins)
 
@@ -104,10 +94,10 @@ fn (mut m MapScreen) build_hud() {
 		.with(&render.Label{
 			text:  'Gems: ${m.scene().store.get_int('gems', 0)}'
 			size:  19
-			align: 'center'
+			align: 'left'
 			color: core.rgba(120, 220, 255, 255)
 		})
-	gems.position = core.vec2(270, 152)
+	gems.position = core.vec2(392, 140)
 	gems.z_index = 10
 	root.add_child(mut gems)
 
@@ -115,10 +105,10 @@ fn (mut m MapScreen) build_hud() {
 		.with(&render.Label{
 			text:  'Stars: ${m.scene().store.get_int('total_stars', 0)}'
 			size:  18
-			align: 'center'
+			align: 'left'
 			color: core.rgba(255, 215, 90, 255)
 		})
-	stars.position = core.vec2(270, 176)
+	stars.position = core.vec2(392, 168)
 	stars.z_index = 10
 	root.add_child(mut stars)
 
