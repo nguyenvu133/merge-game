@@ -11,12 +11,14 @@ import velo.render
 pub struct MapScreen {
 	core.Component
 pub mut:
-	buttons  []&core.Node
-	unlocked int = 1
-	built    bool
-	ach_open bool
-	ach_tab  int
+	buttons   []&core.Node
+	unlocked  int = 1
+	built     bool
+	ach_open  bool
+	ach_tab   int
 	ach_built bool @[hide]
+	cur_point &core.Node = unsafe { nil } // the next playable level — gently pulses
+	cur_t     f32
 }
 
 fn (mut m MapScreen) start() {
@@ -479,20 +481,21 @@ fn (mut m MapScreen) build_map_view() {
 
 	mut view := core.Node.new('MapView')
 		.with(&render.UITransform{ size: core.vec2(540, 960), anchor: core.vec2(0, 0) })
-		.with(&render.ScrollView{ content: 'ScrollContent', vertical: true, wheel_speed: 55 })
+		.with(&render.ScrollView{ content: 'ScrollContent', vertical: true, wheel_speed: 90 })
 	view.position = core.vec2(0, 0)
 	view.z_index = 1
 	root.add_child(mut view)
 
 	total := level_count()
-	content_h := 150 + f32(total) * 66 + 260
+	// 100 levels x 64px, room for 10 region banners + top/bottom margin
+	content_h := 190 + f32(total) * 64 + 140
 	mut content := core.Node.new('ScrollContent')
 		.with(&render.UITransform{ size: core.vec2(540, content_h), anchor: core.vec2(0, 0) })
 	content.position = core.vec2(0, 0)
 	content.z_index = 1
 	view.add_child(mut content)
 
-	// islands — one per 3 levels
+	// islands — one per 3 levels (kept as the winding backdrop)
 	islands := (total + 2) / 3
 	for k in 0 .. islands {
 		mut isl := core.Node.new('Island${k + 1}')
@@ -505,7 +508,35 @@ fn (mut m MapScreen) build_map_view() {
 		content.add_child(mut isl)
 	}
 
-	// level points: zigzag down the islands, 1..total (boss levels use a red point)
+	// 10 themed regions x 10 levels — banner + accent colour per region
+	region_names := ['FIRE PEAKS', 'OCEAN DEPTHS', 'EARTH CRAGS', 'WIND PLAINS', 'THUNDER SPIRE',
+		'FROST CAVES', 'STEAM VENTS', 'LAVA FLOWS', 'EMBER WASTES', 'MUD MARSH']
+	region_cols := [core.rgba(200, 70, 40, 255), core.rgba(50, 120, 220, 255), core.rgba(140, 110, 70, 255),
+		core.rgba(90, 180, 110, 255), core.rgba(190, 170, 50, 255), core.rgba(90, 190, 230, 255),
+		core.rgba(170, 170, 190, 255), core.rgba(230, 80, 50, 255), core.rgba(220, 140, 50, 255),
+		core.rgba(120, 95, 60, 255)]
+	for r in 0 .. 10 {
+		// banner sits in the gap right before the region's first level
+		banner_y := 150 + f32(r * 10) * 64 - 34
+		mut bnr := core.Node.new('Region${r}')
+			.with(&render.UITransform{ size: core.vec2(320, 44), anchor: core.vec2(0.5, 0.5) })
+			.with(&render.Panel{ color: core.rgba(16, 14, 26, 215), radius: 22, border_width: 2, border_color: region_cols[r] })
+		bnr.position = core.vec2(270, banner_y)
+		bnr.z_index = 2
+		content.add_child(mut bnr)
+		mut bt := core.Node.new('RegionLabel${r}')
+			.with(&render.Label{
+				text:  'VUNG ${r + 1}  ·  ${region_names[r]}'
+				size:  18
+				align: 'center'
+				color: region_cols[r]
+			})
+		bt.position = core.vec2(0, 0)
+		bt.z_index = 3
+		bnr.add_child(mut bt)
+	}
+
+	// level points: zigzag down the islands, 1..total (boss levels are bigger + tagged)
 	for i in 1 .. total + 1 {
 		unlocked := i <= m.unlocked
 		completed := i < m.unlocked
@@ -518,14 +549,14 @@ fn (mut m MapScreen) build_map_view() {
 		} else {
 			x = 270
 		}
-		y := 150 + f32(i-1) * 66
+		y := 150 + f32(i - 1) * 64
 		mut point := core.Node.new('Lv${i}')
 		point.position = core.vec2(x, y)
 		point.z_index = 2
 		if unlocked {
 			point = point.with(&render.Sprite{
 				texture: assets.ref[assets.Texture]('ui/point_active.png')
-				size:    core.vec2(86, 66)
+				size:    if boss { core.vec2(100, 78) } else { core.vec2(86, 66) }
 			})
 			point = point.with(&render.Button{})
 			m.buttons << point
@@ -540,7 +571,7 @@ fn (mut m MapScreen) build_map_view() {
 		mut num := core.Node.new('Num${i}')
 			.with(&render.Label{
 				text:  '${i}'
-				size:  if boss { 20 } else { 22 }
+				size:  if boss { 22 } else { 22 }
 				align: 'center'
 				color: if unlocked {
 					if boss {
@@ -555,6 +586,19 @@ fn (mut m MapScreen) build_map_view() {
 		num.position = core.vec2(x, y)
 		num.z_index = 3
 		content.add_child(mut num)
+
+		if boss {
+			mut btag := core.Node.new('BossTag${i}')
+				.with(&render.Label{
+					text:  'BOSS'
+					size:  13
+					align: 'center'
+					color: core.rgba(255, 100, 80, 255)
+				})
+			btag.position = core.vec2(x, y + 36)
+			btag.z_index = 3
+			content.add_child(mut btag)
+		}
 
 		if completed {
 			mut chest := core.Node.new('Chest${i}')
@@ -577,6 +621,10 @@ fn (mut m MapScreen) build_map_view() {
 				stp.z_index = 4
 				content.add_child(mut stp)
 			}
+		}
+		// the next playable level gets a gentle pulse marker
+		if i == m.unlocked && !completed {
+			m.cur_point = point
 		}
 	}
 }
@@ -605,6 +653,12 @@ fn (mut m MapScreen) refresh_coins() {
 }
 
 fn (mut m MapScreen) update(dt f32) {
+	// the next playable level point gently pulses (no math lib needed)
+	if m.cur_point != unsafe { nil } {
+		m.cur_t += dt
+		sc := f32(if int(m.cur_t * 3) % 2 == 0 { 1.07 } else { 1.0 })
+		m.cur_point.scale = core.vec2(sc, sc)
+	}
 	for n in m.buttons {
 		if mut b := n.get_component[render.Button]() {
 			if b.clicked {
