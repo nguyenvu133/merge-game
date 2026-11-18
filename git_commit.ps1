@@ -1,10 +1,11 @@
 # =====================================================================
-# git_commit.ps1 — one-click commit + push with an auto message.
+# git_commit.ps1 — one-click COMMIT with an auto message (no push).
 # Double-click git_commit.bat (this script runs automatically):
 #   1. stages every change (build/ and *.exe are already git-ignored)
 #   2. builds an automatic message like GitHub Desktop's
 #      ("Update battle.v; Create assets/back/Layer.png")
-#   3. commits and pushes to the current branch — no typing needed.
+#   3. commits — then STOPS. To upload, run git_push.bat (only when you
+#      ask for it).
 # Usage:  powershell -ExecutionPolicy Bypass -File git_commit.ps1 [-DryRun]
 # =====================================================================
 param([switch]$DryRun)
@@ -44,10 +45,4 @@ if ($LASTEXITCODE -ne 0) { Write-Host 'git add FAILED.'; exit $LASTEXITCODE }
 git commit -m $msg
 if ($LASTEXITCODE -ne 0) { Write-Host 'Commit FAILED.'; exit $LASTEXITCODE }
 Write-Host "Committed: $msg"
-
-# ---- 4. push (uses the saved Windows credential, no prompt) ----
-$env:GIT_TERMINAL_PROMPT = '0'
-$env:GCM_INTERACTIVE = 'auto'
-git -c credential.helper=manager push origin HEAD
-if ($LASTEXITCODE -ne 0) { Write-Host 'Push FAILED.'; exit $LASTEXITCODE }
-Write-Host 'Pushed to origin.'
+Write-Host 'Not pushed yet - run git_push.bat when you want to upload to GitHub.'
