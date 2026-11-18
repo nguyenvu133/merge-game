@@ -1,6 +1,6 @@
 {
  "levels": {
-  "count": 100,
+  "count": 300,
   "base_reward": 25,
   "reward_step": 4,
   "waves_min": 2,

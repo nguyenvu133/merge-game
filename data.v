@@ -230,7 +230,7 @@ const g_data = GameData{
 	bosses:     [BossData{10, 9.0, 1.8, 0.9, 'boss_rain', 'Kine/boss_soi.png', 1.6, 3, 'EMBER', [f32(255), 120, 60]!}, BossData{10, 10.0, 1.9, 0.95, 'boss_ice', 'Kine/boss_soi.png', 1.65, 3, 'FROST', [f32(120), 200, 255]!}, BossData{10, 11.0, 2.0, 0.85, 'boss_slam', 'Kine/boss_soi.png', 1.7, 3, 'TITAN', [f32(170), 130, 95]!}, BossData{10, 12.0, 2.1, 1.0, 'boss_rain', 'Kine/boss_soi.png', 1.7, 4, 'VENOM', [f32(140), 255, 120]!}, BossData{10, 13.0, 2.3, 1.05, 'boss_stunwave', 'Kine/boss_soi.png', 1.75, 4, 'STORM', [f32(190), 140, 255]!}, BossData{10, 14.0, 2.5, 1.0, 'boss_meteor', 'Kine/boss_soi.png', 1.8, 4, 'MAGMA', [f32(255), 90, 30]!}, BossData{10, 16.0, 2.7, 1.05, 'boss_freeze', 'Kine/boss_soi.png', 1.85, 5, 'ABYSS', [f32(70), 80, 130]!}, BossData{10, 18.0, 2.9, 1.1, 'boss_ice', 'Kine/boss_soi.png', 1.9, 5, 'CRYSTAL', [f32(200), 240, 255]!}, BossData{10, 20.0, 3.1, 1.15, 'boss_stunwave', 'Kine/boss_soi.png', 1.95, 5, 'VOID', [f32(110), 50, 160]!}, BossData{10, 23.0, 3.4, 1.2, 'boss_meteor', 'Kine/boss_soi.png', 2.0, 6, 'PRIME', [f32(255), 200, 60]!}]
 	level_mult: 1.32
 	levels:     LevelTuning{
-		count:       100
+		count:       300
 		base_reward: 25
 		reward_step: 4
 		waves_min:   2

@@ -86,7 +86,7 @@ fn (mut m MapScreen) build_hud() {
 			align: 'left'
 			color: core.rgba(255, 220, 90, 255)
 		})
-	coins.position = core.vec2(392, 112)
+	coins.position = core.vec2(430, 112)
 	coins.z_index = 10
 	root.add_child(mut coins)
 
@@ -97,7 +97,7 @@ fn (mut m MapScreen) build_hud() {
 			align: 'left'
 			color: core.rgba(120, 220, 255, 255)
 		})
-	gems.position = core.vec2(392, 140)
+	gems.position = core.vec2(430, 140)
 	gems.z_index = 10
 	root.add_child(mut gems)
 
@@ -108,7 +108,7 @@ fn (mut m MapScreen) build_hud() {
 			align: 'left'
 			color: core.rgba(255, 215, 90, 255)
 		})
-	stars.position = core.vec2(392, 168)
+	stars.position = core.vec2(430, 168)
 	stars.z_index = 10
 	root.add_child(mut stars)
 

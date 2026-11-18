@@ -87,6 +87,19 @@ if ($fresh) {
 # stamp for live-reload
 Set-Content (Join-Path $dst 'watch.txt') (Get-Date -Format o) -Encoding UTF8 -NoNewline
 
+# ---- loading screen background (Loadingbackground.png, if present) ----
+$hh2 = Join-Path $dst 'index.html'
+if (Test-Path $hh2) {
+    $h3 = Get-Content $hh2 -Raw
+    if ($h3 -notmatch 'velo-loading-bg') {
+        $inject = '<style>#velo-loading-bg{display:none}</style>'
+        $h3 = $h3 -replace '</style>', "</style>`n$inject"
+        $h3 = $h3 -replace '#velo-loading \{', '#velo-loading { background: #000 url("assets/ui/Loadingbackground.png") center/cover no-repeat; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.8); '
+        Set-Content $hh2 $h3 -Encoding UTF8 -NoNewline
+        Write-Host '  loading screen: Loadingbackground.png applied'
+    }
+}
+
 # ---- copy the bundle as a standalone Velo engine JS library ----
 $lib = Join-Path $proj 'web\velo-lib'
 New-Item -ItemType Directory -Force -Path $lib | Out-Null
