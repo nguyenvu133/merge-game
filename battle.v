@@ -270,7 +270,7 @@ fn (mut b MergeBoard) start_army() {
 			// NEVER pile up at the fallback position (the reported overlap bug)
 			if ts.cell >= 0 && ts.cell < 15 {
 				b.spawn_unit(ts.element, ts.level, ts.cell)
-			} else if i < 8 {
+			} else if i < 12 {
 				b.spawn_unit(ts.element, ts.level, 7 + i)
 				i++
 			}
@@ -594,8 +594,8 @@ fn (mut b MergeBoard) drop(mut u &core.Node, mouse core.Vec2) {
 				if sm.element == om.element && sm.level == om.level {
 					// same-element merge (level + 1)
 					el := sm.element
-					lvl := if sm.level >= 10 { 10 } else { sm.level + 1 }
-					if sm.level >= 10 {
+					lvl := if sm.level >= 60 { 60 } else { sm.level + 1 }
+					if sm.level >= 60 {
 						bonus := sm.level * 12
 						b.add_coins(bonus)
 						b.remove_unit(mut u)
@@ -789,7 +789,7 @@ fn (mut b MergeBoard) show_unit_info(idx int) {
 		if mut ll := l.get_component[render.Label]() {
 			sy := b.synergy_mult(m.element)
 			sy_txt := if sy > 1.0 { '  SYNERGY +${int((sy - 1.0) * 100)}%' } else { '' }
-			if m.level >= 10 {
+			if m.level >= 60 {
 				ll.text = 'MAX LEVEL - merge for bonus coins${sy_txt}'
 			} else {
 				ed := element_data(m.element)
@@ -914,7 +914,7 @@ fn (mut b MergeBoard) reapply_all() {
 // level_up_unit — gem upgrade: +1 level, re-stats, new art, tag update.
 fn (mut b MergeBoard) level_up_unit(mut u &core.Node) bool {
 	mut m := u.get_component[Monster]() or { return false }
-	if m.level >= 10 {
+	if m.level >= 60 {
 		return false
 	}
 	m.level++
@@ -934,7 +934,7 @@ fn (mut b MergeBoard) upgrade_attr(key string, cost int) bool {
 	}
 	mut st := b.scene().store
 	lv := st.get_int(key, 0)
-	if lv < 10 {
+	if lv < 25 {
 		st.set_int(key, lv + 1)
 	}
 	b.reapply_all()
@@ -1644,7 +1644,9 @@ fn kill_unit(c &BattleController, mut target &core.Node, mut m &Monster) {
 		st.set_int('coins', st.get_int('coins', 200) + coins)
 		st.set_int('stat_kills', st.get_int('stat_kills', 0) + 1)
 		if m.is_boss {
-			st.set_int('gems', st.get_int('gems', 0) + 5) // boss kill: +5 gems
+			lv := st.get_int('current_level', 1)
+			gems := if lv / 2 > 5 { lv / 2 } else { 5 } // boss kill gems scale with level
+			st.set_int('gems', st.get_int('gems', 0) + gems)
 			st.set_int('stat_bosses', st.get_int('stat_bosses', 0) + 1)
 		}
 		if m.is_elite {
@@ -2638,7 +2640,7 @@ fn (mut u BattleUI) poll_panel_buttons() {
 				if mut bt := b.get_component[render.Button]() {
 					if bt.clicked {
 						bt.clicked = false
-						if m.level >= 10 {
+						if m.level >= 60 {
 							return // max level reached; keep upgrading DMG/HP/SPD/CRIT instead
 						}
 						cost := 80 * m.level
@@ -2912,7 +2914,7 @@ fn (mut u BattleUI) close_team_panel() {
 	}
 	u.team_rows.clear()
 	mut root := u.scene().root
-	for i in 0 .. 8 {
+	for i in 0 .. 12 {
 		if mut r := root.find('TRow${i}') {
 			r.destroy()
 		}
@@ -2966,7 +2968,7 @@ fn (mut u BattleUI) refresh_team_rows() {
 	}
 	u.team_rows.clear()
 	mut root := u.scene().root
-	for i in 0 .. 8 {
+	for i in 0 .. 12 {
 		if mut r := root.find('TRow${i}') {
 			r.destroy()
 		}
@@ -3074,7 +3076,7 @@ fn (mut u BattleUI) build_attr_row(key string, name string, i int) &core.Node {
 	y := f32(480 - 118 + i * 68)
 	mut info := core.Node.new('AInfo${i}')
 		.with(&render.Label{
-			text:  '${name}   Lv ${lv}/10'
+			text:  '${name}   Lv ${lv}/25'
 			size:  15
 			align: 'left'
 			color: core.rgba(230, 235, 255, 255)
@@ -3115,7 +3117,7 @@ fn (mut u BattleUI) poll_team_buttons() {
 					bt.clicked = false
 					mut uu := units[i]
 					if mut m := uu.get_component[Monster]() {
-						cost := 5 + m.level * 2
+						cost := 3 + m.level
 						if board.spend_gems(cost) {
 							board.level_up_unit(mut uu)
 							sfx_play_scene(u.scene(), 'audio/buy.wav')
@@ -3319,9 +3321,11 @@ fn (mut u BattleUI) show_victory(reward int) {
 	if mut c := u.scene().root.find('VictoryCoins') {
 		if mut l := c.get_component[render.Label]() {
 			mut st := u.scene().store
-			l.text = '+${reward} coins  +3 gems'
-			// +3 gems for the win (coin attr boosts the coin part only)
-			st.set_int('gems', st.get_int('gems', 0) + 3)
+			lv := u.level
+			wg := if lv / 4 > 3 { lv / 4 } else { 3 } // win gems scale with level
+			l.text = '+${reward} coins  +${wg} gems'
+			// win gems (coin attr boosts the coin part only)
+			st.set_int('gems', st.get_int('gems', 0) + wg)
 		}
 		c.active = true
 	}
