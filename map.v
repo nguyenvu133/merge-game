@@ -495,7 +495,8 @@ fn (mut m MapScreen) build_map_view() {
 	content.z_index = 1
 	view.add_child(mut content)
 
-	// islands — one per 3 levels (kept as the winding backdrop)
+	// islands — one per 3 levels, starting high enough to back level 1
+	// (first island covers y 88..351, level 1 sits at y 150)
 	islands := (total + 2) / 3
 	for k in 0 .. islands {
 		mut isl := core.Node.new('Island${k + 1}')
@@ -503,7 +504,7 @@ fn (mut m MapScreen) build_map_view() {
 				texture: assets.ref[assets.Texture]('back/beachland.png')
 				size:    core.vec2(420, 263)
 			})
-		isl.position = core.vec2(270, 320 + f32(k) * 198)
+		isl.position = core.vec2(270, 220 + f32(k) * 198)
 		isl.z_index = 1
 		content.add_child(mut isl)
 	}
@@ -516,8 +517,8 @@ fn (mut m MapScreen) build_map_view() {
 		core.rgba(170, 170, 190, 255), core.rgba(230, 80, 50, 255), core.rgba(220, 140, 50, 255),
 		core.rgba(120, 95, 60, 255)]
 	for r in 0 .. 10 {
-		// banner sits in the gap right before the region's first level
-		banner_y := 150 + f32(r * 10) * 64 - 34
+		// banner sits ABOVE the region's first level (never overlapped by its point)
+		banner_y := 150 + f32(r * 10) * 64 - 60
 		mut bnr := core.Node.new('Region${r}')
 			.with(&render.UITransform{ size: core.vec2(320, 44), anchor: core.vec2(0.5, 0.5) })
 			.with(&render.Panel{ color: core.rgba(16, 14, 26, 215), radius: 22, border_width: 2, border_color: region_cols[r] })
