@@ -1,0 +1,15 @@
+﻿node UnitWater {
+	position = [0, 0]
+	Sprite {
+		texture = @asset("2a2d5ae5") # water1.png
+	}
+	Monster {
+		element = "water"
+		side = 0
+		level = 1
+		ranged = true
+		range = 210
+		crit = 0.05
+		kill_coins = 6
+	}
+}

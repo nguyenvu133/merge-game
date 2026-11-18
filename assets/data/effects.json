@@ -1,0 +1,65 @@
+{
+ "effects": {
+  "burn": {
+   "type": "burn",
+   "value": 3,
+   "duration": 3.0
+  },
+  "splash": {
+   "type": "area",
+   "value": 60,
+   "dmg_mult": 0.5
+  },
+  "stun": {
+   "type": "stun",
+   "value": 1.0
+  },
+  "knockback": {
+   "type": "knockback",
+   "value": 40
+  },
+  "freeze": {
+   "type": "freeze",
+   "value": 1.5
+  },
+  "poison": {
+   "type": "poison",
+   "value": 5,
+   "duration": 4.0
+  },
+  "meteor": {
+   "type": "burn",
+   "value": 8,
+   "duration": 5.0
+  },
+  "weak": {
+   "type": "weak",
+   "value": 0.6,
+   "duration": 3.0
+  },
+  "slow": {
+   "type": "slow",
+   "value": 0.5,
+   "duration": 2.5
+  },
+  "explode": {
+   "type": "area",
+   "value": 90,
+   "dmg_mult": 0.8
+  },
+  "atk_up": {
+   "type": "atk_up",
+   "value": 1.5,
+   "duration": 5.0
+  },
+  "shield": {
+   "type": "shield",
+   "value": 80
+  },
+  "regen": {
+   "type": "regen",
+   "value": 6,
+   "duration": 4.0
+  }
+ }
+}

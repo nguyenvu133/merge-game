@@ -1,0 +1,13 @@
+﻿node Enemy4 {
+	position = [0, 0]
+	Sprite {
+		texture = @asset("fa30895f") # monter4.png
+	}
+	Monster {
+		element = "enemy"
+		side = 1
+		level = 1
+		ranged = true
+		is_boss = false
+	}
+}

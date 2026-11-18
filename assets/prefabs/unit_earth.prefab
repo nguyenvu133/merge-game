@@ -1,0 +1,15 @@
+﻿node UnitEarth {
+	position = [0, 0]
+	Sprite {
+		texture = @asset("08fcb1d4") # earth1.png
+	}
+	Monster {
+		element = "earth"
+		side = 0
+		level = 1
+		ranged = false
+		range = 0
+		crit = 0.05
+		kill_coins = 6
+	}
+}

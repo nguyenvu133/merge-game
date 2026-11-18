@@ -1,0 +1,37 @@
+{
+ "default": [
+  {
+   "element": "fire",
+   "level": 1
+  },
+  {
+   "element": "wind",
+   "level": 1
+  },
+  {
+   "element": "water",
+   "level": 1
+  },
+  {
+   "element": "earth",
+   "level": 1
+  },
+  {
+   "element": "",
+   "level": 0
+  },
+  {
+   "element": "",
+   "level": 0
+  },
+  {
+   "element": "",
+   "level": 0
+  },
+  {
+   "element": "",
+   "level": 0
+  }
+ ],
+ "max_slots": 8
+}

@@ -1,0 +1,15 @@
+﻿node UnitWind {
+	position = [0, 0]
+	Sprite {
+		texture = @asset("14e94d98") # wind1.png
+	}
+	Monster {
+		element = "wind"
+		side = 0
+		level = 1
+		ranged = true
+		range = 280
+		crit = 0.05
+		kill_coins = 6
+	}
+}

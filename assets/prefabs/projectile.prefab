@@ -1,0 +1,8 @@
+﻿node Projectile {
+	position = [0, 0]
+	z_index = 9
+	Sprite {
+		texture = @asset("2e5d8c0f") # fx/proj_magic.png
+		size = [36, 36]
+	}
+}

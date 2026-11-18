@@ -1,0 +1,125 @@
+{
+ "every": 10,
+ "list": [
+  {
+   "id": "ember",
+   "name": "EMBER",
+   "hp_mult": 9.0,
+   "dmg_mult": 1.8,
+   "spd": 0.9,
+   "skill": "boss_rain",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 1.6,
+   "reward_mult": 3,
+   "tint": [255, 120, 60]
+  },
+  {
+   "id": "frost",
+   "name": "FROST",
+   "hp_mult": 10.0,
+   "dmg_mult": 1.9,
+   "spd": 0.95,
+   "skill": "boss_ice",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 1.65,
+   "reward_mult": 3,
+   "tint": [120, 200, 255]
+  },
+  {
+   "id": "titan",
+   "name": "TITAN",
+   "hp_mult": 11.0,
+   "dmg_mult": 2.0,
+   "spd": 0.85,
+   "skill": "boss_slam",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 1.7,
+   "reward_mult": 3,
+   "tint": [170, 130, 95]
+  },
+  {
+   "id": "venom",
+   "name": "VENOM",
+   "hp_mult": 12.0,
+   "dmg_mult": 2.1,
+   "spd": 1.0,
+   "skill": "boss_rain",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 1.7,
+   "reward_mult": 4,
+   "tint": [140, 255, 120]
+  },
+  {
+   "id": "storm",
+   "name": "STORM",
+   "hp_mult": 13.0,
+   "dmg_mult": 2.3,
+   "spd": 1.05,
+   "skill": "boss_stunwave",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 1.75,
+   "reward_mult": 4,
+   "tint": [190, 140, 255]
+  },
+  {
+   "id": "magma",
+   "name": "MAGMA",
+   "hp_mult": 14.0,
+   "dmg_mult": 2.5,
+   "spd": 1.0,
+   "skill": "boss_meteor",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 1.8,
+   "reward_mult": 4,
+   "tint": [255, 90, 30]
+  },
+  {
+   "id": "abyss",
+   "name": "ABYSS",
+   "hp_mult": 16.0,
+   "dmg_mult": 2.7,
+   "spd": 1.05,
+   "skill": "boss_freeze",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 1.85,
+   "reward_mult": 5,
+   "tint": [70, 80, 130]
+  },
+  {
+   "id": "crystal",
+   "name": "CRYSTAL",
+   "hp_mult": 18.0,
+   "dmg_mult": 2.9,
+   "spd": 1.1,
+   "skill": "boss_ice",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 1.9,
+   "reward_mult": 5,
+   "tint": [200, 240, 255]
+  },
+  {
+   "id": "void",
+   "name": "VOID",
+   "hp_mult": 20.0,
+   "dmg_mult": 3.1,
+   "spd": 1.15,
+   "skill": "boss_stunwave",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 1.95,
+   "reward_mult": 5,
+   "tint": [110, 50, 160]
+  },
+  {
+   "id": "prime",
+   "name": "PRIME",
+   "hp_mult": 23.0,
+   "dmg_mult": 3.4,
+   "spd": 1.2,
+   "skill": "boss_meteor",
+   "tex": "Kine/boss_soi.png",
+   "size_scale": 2.0,
+   "reward_mult": 6,
+   "tint": [255, 200, 60]
+  }
+ ]
+}

@@ -1,0 +1,68 @@
+boss_soi_spine.png
+size: 3288,684
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+head
+  rotate: 0
+  xy: 0, 0
+  size: 411, 342
+  orig: 411, 342
+  offset: 0, 0
+  index: -1
+leg_2
+  rotate: 0
+  xy: 411, 0
+  size: 149, 221
+  orig: 149, 221
+  offset: 0, 0
+  index: -1
+head-2
+  rotate: 0
+  xy: 822, 0
+  size: 116, 163
+  orig: 116, 163
+  offset: 0, 0
+  index: -1
+head-3
+  rotate: 0
+  xy: 1233, 0
+  size: 279, 246
+  orig: 279, 246
+  offset: 0, 0
+  index: -1
+head-4
+  rotate: 0
+  xy: 1644, 0
+  size: 179, 187
+  orig: 179, 187
+  offset: 0, 0
+  index: -1
+leg_2-2
+  rotate: 0
+  xy: 2055, 0
+  size: 114, 235
+  orig: 114, 235
+  offset: 0, 0
+  index: -1
+leg_2-3
+  rotate: 0
+  xy: 2466, 0
+  size: 120, 222
+  orig: 120, 222
+  offset: 0, 0
+  index: -1
+leg_2-4
+  rotate: 0
+  xy: 2877, 0
+  size: 120, 222
+  orig: 120, 222
+  offset: 0, 0
+  index: -1
+head-5
+  rotate: 0
+  xy: 0, 342
+  size: 209, 229
+  orig: 209, 229
+  offset: 0, 0
+  index: -1

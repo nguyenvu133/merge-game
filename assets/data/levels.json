@@ -1,0 +1,13 @@
+{
+ "levels": {
+  "count": 100,
+  "base_reward": 25,
+  "reward_step": 4,
+  "waves_min": 2,
+  "waves_max": 6,
+  "count_base": 2,
+  "count_step": 15,
+  "mtype_scale": 5,
+  "level_scale": 10
+ }
+}

@@ -1,0 +1,407 @@
+{
+ "elements": {
+  "fire": {
+   "hp": 60,
+   "dmg": 13,
+   "spd": 1.0,
+   "ranged": false,
+   "range": 0,
+   "tex": "monsters/fire",
+   "proj": "fx/proj_fire.png",
+   "skill": "fire_shot"
+  },
+  "water": {
+   "hp": 80,
+   "dmg": 11,
+   "spd": 1.4,
+   "ranged": true,
+   "range": 210,
+   "tex": "monsters/water",
+   "proj": "fx/proj_water.png",
+   "skill": "water_bolt"
+  },
+  "earth": {
+   "hp": 105,
+   "dmg": 15,
+   "spd": 1.8,
+   "ranged": false,
+   "range": 0,
+   "tex": "monsters/earth",
+   "proj": "fx/proj_earth.png",
+   "skill": "earth_slam"
+  },
+  "wind": {
+   "hp": 48,
+   "dmg": 10,
+   "spd": 0.8,
+   "ranged": true,
+   "range": 280,
+   "tex": "monsters/wind",
+   "proj": "fx/proj_wind.png",
+   "skill": "wind_gust"
+  },
+  "lightning": {
+   "hp": 70,
+   "dmg": 16,
+   "spd": 1.1,
+   "ranged": true,
+   "range": 250,
+   "tex": "monsters/fire1.png",
+   "proj": "fx/proj_earth.png",
+   "skill": "lightning_strike"
+  },
+  "ice": {
+   "hp": 90,
+   "dmg": 12,
+   "spd": 1.3,
+   "ranged": true,
+   "range": 230,
+   "tex": "monsters/water1.png",
+   "proj": "fx/proj_water.png",
+   "skill": "ice_freeze"
+  },
+  "steam": {
+   "hp": 90,
+   "dmg": 13,
+   "spd": 1.2,
+   "ranged": true,
+   "range": 220,
+   "tex": "monsters/steam",
+   "proj": "fx/proj_water.png",
+   "skill": "steam_cloud"
+  },
+  "lava": {
+   "hp": 120,
+   "dmg": 16,
+   "spd": 1.3,
+   "ranged": false,
+   "range": 0,
+   "tex": "monsters/lava",
+   "proj": "fx/proj_fire.png",
+   "skill": "lava_burst"
+  },
+  "ember": {
+   "hp": 75,
+   "dmg": 14,
+   "spd": 0.9,
+   "ranged": true,
+   "range": 260,
+   "tex": "monsters/ember",
+   "proj": "fx/proj_fire.png",
+   "skill": "ember_shot"
+  },
+  "mud": {
+   "hp": 130,
+   "dmg": 13,
+   "spd": 1.5,
+   "ranged": false,
+   "range": 0,
+   "tex": "monsters/mud",
+   "proj": "fx/proj_earth.png",
+   "skill": "mud_slam"
+  },
+  "mist": {
+   "hp": 80,
+   "dmg": 12,
+   "spd": 1.0,
+   "ranged": true,
+   "range": 240,
+   "tex": "monsters/mist",
+   "proj": "fx/proj_water.png",
+   "skill": "mist_bolt"
+  },
+  "dust": {
+   "hp": 100,
+   "dmg": 14,
+   "spd": 1.2,
+   "ranged": true,
+   "range": 250,
+   "tex": "monsters/dust",
+   "proj": "fx/proj_wind.png",
+   "skill": "dust_gust"
+  }
+ },
+ "enemies": {
+  "1": {
+   "hp": 42,
+   "dmg": 7,
+   "spd": 1.7,
+   "ranged": false,
+   "range": 0,
+   "tex": "enemies/monter1.png",
+   "size": [
+    191,
+    221
+   ]
+  },
+  "2": {
+   "hp": 58,
+   "dmg": 9,
+   "spd": 1.5,
+   "ranged": false,
+   "range": 0,
+   "tex": "enemies/monter2.png",
+   "size": [
+    283,
+    269
+   ]
+  },
+  "3": {
+   "hp": 75,
+   "dmg": 11,
+   "spd": 1.4,
+   "ranged": true,
+   "range": 190,
+   "tex": "enemies/monter3.png",
+   "size": [
+    172,
+    167
+   ]
+  },
+  "4": {
+   "hp": 95,
+   "dmg": 13,
+   "spd": 1.25,
+   "ranged": true,
+   "range": 225,
+   "tex": "enemies/monter4.png",
+   "size": [
+    236,
+    231
+   ]
+  },
+  "5": {
+   "hp": 120,
+   "dmg": 16,
+   "spd": 1.1,
+   "ranged": true,
+   "range": 260,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ]
+  },
+  "6": {
+   "hp": 150,
+   "dmg": 20,
+   "spd": 1.0,
+   "ranged": true,
+   "range": 280,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ]
+  },
+  "7": {
+   "hp": 185,
+   "dmg": 24,
+   "spd": 0.9,
+   "ranged": true,
+   "range": 300,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ]
+  },
+  "8": {
+   "hp": 225,
+   "dmg": 28,
+   "spd": 0.8,
+   "ranged": true,
+   "range": 320,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ]
+  },
+  "9": {
+   "hp": 270,
+   "dmg": 32,
+   "spd": 0.7,
+   "ranged": true,
+   "range": 340,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ]
+  },
+  "10": {
+   "hp": 320,
+   "dmg": 36,
+   "spd": 0.7,
+   "ranged": true,
+   "range": 340,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ]
+  },
+  "11": {
+   "hp": 375,
+   "dmg": 40,
+   "spd": 0.7,
+   "ranged": true,
+   "range": 340,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ]
+  },
+  "12": {
+   "hp": 435,
+   "dmg": 45,
+   "spd": 0.7,
+   "ranged": true,
+   "range": 340,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ]
+  },
+  "13": {
+   "hp": 500,
+   "dmg": 50,
+   "spd": 0.65,
+   "ranged": true,
+   "range": 340,
+   "tex": "enemies/monter1.png",
+   "size": [
+    191,
+    221
+   ],
+   "tint": [
+    255,
+    120,
+    80
+   ]
+  },
+  "14": {
+   "hp": 580,
+   "dmg": 56,
+   "spd": 0.65,
+   "ranged": true,
+   "range": 345,
+   "tex": "enemies/monter2.png",
+   "size": [
+    283,
+    269
+   ],
+   "tint": [
+    120,
+    255,
+    140
+   ]
+  },
+  "15": {
+   "hp": 660,
+   "dmg": 62,
+   "spd": 0.6,
+   "ranged": true,
+   "range": 350,
+   "tex": "enemies/monter3.png",
+   "size": [
+    172,
+    167
+   ],
+   "tint": [
+    255,
+    220,
+    100
+   ]
+  },
+  "16": {
+   "hp": 750,
+   "dmg": 69,
+   "spd": 0.6,
+   "ranged": true,
+   "range": 355,
+   "tex": "enemies/monter4.png",
+   "size": [
+    236,
+    231
+   ],
+   "tint": [
+    140,
+    180,
+    255
+   ]
+  },
+  "17": {
+   "hp": 850,
+   "dmg": 77,
+   "spd": 0.55,
+   "ranged": true,
+   "range": 360,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ],
+   "tint": [
+    200,
+    120,
+    255
+   ]
+  },
+  "18": {
+   "hp": 960,
+   "dmg": 86,
+   "spd": 0.55,
+   "ranged": true,
+   "range": 365,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ],
+   "tint": [
+    255,
+    100,
+    200
+   ]
+  },
+  "19": {
+   "hp": 1080,
+   "dmg": 96,
+   "spd": 0.5,
+   "ranged": true,
+   "range": 370,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ],
+   "tint": [
+    100,
+    255,
+    220
+   ]
+  },
+  "20": {
+   "hp": 1200,
+   "dmg": 108,
+   "spd": 0.5,
+   "ranged": true,
+   "range": 375,
+   "tex": "enemies/monter5.png",
+   "size": [
+    263,
+    230
+   ],
+   "tint": [
+    255,
+    90,
+    60
+   ]
+  }
+ },
+ "level_mult": 1.32
+}

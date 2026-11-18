@@ -1,0 +1,15 @@
+﻿node Boss {
+	position = [0, 0]
+	Sprite {
+		texture = @asset("cbda8bbb") # monter5.png
+	}
+	Monster {
+		element = "enemy"
+		side = 1
+		level = 5
+		ranged = true
+		range = 320
+		is_boss = true
+		skill = "boss_rain"
+	}
+}

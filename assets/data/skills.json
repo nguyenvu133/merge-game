@@ -1,0 +1,172 @@
+{
+ "skills": {
+  "fire_shot": {
+   "type": "melee",
+   "dmg_mult": 1.0,
+   "range": 0,
+   "count": 1,
+   "effect": "burn"
+  },
+  "water_bolt": {
+   "type": "projectile",
+   "dmg_mult": 1.0,
+   "range": 210,
+   "count": 1,
+   "effect": "splash"
+  },
+  "earth_slam": {
+   "type": "melee",
+   "dmg_mult": 1.0,
+   "range": 0,
+   "count": 1,
+   "effect": "stun"
+  },
+  "wind_gust": {
+   "type": "projectile",
+   "dmg_mult": 1.0,
+   "range": 280,
+   "count": 1,
+   "effect": "slow"
+  },
+  "boss_rain": {
+   "type": "projectile",
+   "dmg_mult": 0.8,
+   "range": 320,
+   "count": 3,
+   "effect": "burn"
+  },
+  "boss_slam": {
+   "type": "melee",
+   "dmg_mult": 1.6,
+   "range": 0,
+   "count": 1,
+   "effect": "stun"
+  },
+  "boss_ice": {
+   "type": "projectile",
+   "dmg_mult": 1.2,
+   "range": 300,
+   "count": 5,
+   "effect": "freeze"
+  },
+  "heal": {
+   "type": "heal",
+   "dmg_mult": -0.3,
+   "range": 0,
+   "count": 1,
+   "effect": "regen"
+  },
+  "boss_meteor": {
+   "type": "projectile",
+   "dmg_mult": 2.0,
+   "range": 340,
+   "count": 6,
+   "effect": "burn"
+  },
+  "boss_freeze": {
+   "type": "projectile",
+   "dmg_mult": 1.4,
+   "range": 320,
+   "count": 5,
+   "effect": "freeze"
+  },
+  "boss_stunwave": {
+   "type": "melee",
+   "dmg_mult": 2.2,
+   "range": 0,
+   "count": 1,
+   "effect": "stun"
+  },
+  "ultimate": {
+   "type": "projectile",
+   "dmg_mult": 3.0,
+   "range": 400,
+   "count": 1,
+   "effect": "burn"
+  },
+  "lightning_strike": {
+   "type": "projectile",
+   "dmg_mult": 1.5,
+   "range": 250,
+   "count": 1,
+   "effect": "stun"
+  },
+  "ice_freeze": {
+   "type": "projectile",
+   "dmg_mult": 1.2,
+   "range": 230,
+   "count": 1,
+   "effect": "freeze"
+  },
+  "ember_aura": {
+   "type": "melee",
+   "dmg_mult": 1.0,
+   "range": 0,
+   "count": 1,
+   "effect": "atk_up"
+  },
+  "stone_guard": {
+   "type": "melee",
+   "dmg_mult": 1.0,
+   "range": 0,
+   "count": 1,
+   "effect": "shield"
+  },
+  "nature_regen": {
+   "type": "heal",
+   "dmg_mult": -0.2,
+   "range": 0,
+   "count": 1,
+   "effect": "regen"
+  },
+  "shadow_hex": {
+   "type": "projectile",
+   "dmg_mult": 1.3,
+   "range": 240,
+   "count": 1,
+   "effect": "weak"
+  },
+  "steam_cloud": {
+   "type": "projectile",
+   "dmg_mult": 1.1,
+   "range": 220,
+   "count": 2,
+   "effect": "slow"
+  },
+  "lava_burst": {
+   "type": "melee",
+   "dmg_mult": 1.3,
+   "range": 0,
+   "count": 1,
+   "effect": "burn"
+  },
+  "ember_shot": {
+   "type": "projectile",
+   "dmg_mult": 1.2,
+   "range": 260,
+   "count": 1,
+   "effect": "burn"
+  },
+  "mud_slam": {
+   "type": "melee",
+   "dmg_mult": 1.2,
+   "range": 0,
+   "count": 1,
+   "effect": "stun"
+  },
+  "mist_bolt": {
+   "type": "projectile",
+   "dmg_mult": 1.1,
+   "range": 240,
+   "count": 1,
+   "effect": "freeze"
+  },
+  "dust_gust": {
+   "type": "projectile",
+   "dmg_mult": 1.2,
+   "range": 250,
+   "count": 1,
+   "effect": "weak"
+  }
+ }
+}

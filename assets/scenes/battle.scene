@@ -1,0 +1,6 @@
+node BattleRoot {
+  BattleController { }
+  MergeBoard { }
+  BattleUI { }
+  SettingsUI { }
+}
